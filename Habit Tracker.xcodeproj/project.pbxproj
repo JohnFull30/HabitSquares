@@ -73,6 +73,7 @@
 			membershipExceptions = (
 				"Habit Tracker/HabitSquaresWidget.swift",
 				"Habit Tracker/Info.plist",
+				"Habit Tracker/Untitled.swift",
 			);
 			target = 523CBDE82ED010A900455486 /* Habit Tracker */;
 		};
@@ -80,6 +81,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"Habit Tracker/CacheWriter 2.swift",
+				"Habit Tracker/HabitModels.swift",
 				"Habit Tracker/HabitSquaresWidget.swift",
 				"Habit Tracker/HeatmapView.swift",
 			);
