@@ -73,7 +73,6 @@
 			membershipExceptions = (
 				"Habit Tracker/HabitSquaresWidget.swift",
 				"Habit Tracker/Info.plist",
-				"Habit Tracker/Untitled.swift",
 			);
 			target = 523CBDE82ED010A900455486 /* Habit Tracker */;
 		};
@@ -415,7 +414,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "Habit Tracker/Habit_Tracker.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CRF77UR32V;
@@ -448,7 +447,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "Habit Tracker/Habit_Tracker.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CRF77UR32V;
