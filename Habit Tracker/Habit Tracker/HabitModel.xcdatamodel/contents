@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24411" systemVersion="25A362" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="Habit" representedClassName="Habit" syncable="YES" codeGenerationType="class">
+        <attribute name="colorHex" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="trackingMode" optional="YES" attributeType="String"/>
+        <relationship name="completions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="HabitCompletion" inverseName="habit" inverseEntity="HabitCompletion"/>
+        <relationship name="reminderLinks" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="HabitReminderLink" inverseName="habit" inverseEntity="HabitReminderLink"/>
+    </entity>
+    <entity name="HabitCompletion" representedClassName="HabitCompletion" syncable="YES" codeGenerationType="class">
+        <attribute name="completedRequired" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isComplete" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="source" optional="YES" attributeType="String"/>
+        <attribute name="totalRequired" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="habit" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Habit" inverseName="completions" inverseEntity="Habit"/>
+    </entity>
+    <entity name="HabitReminderLink" representedClassName="HabitReminderLink" syncable="YES" codeGenerationType="class">
+        <attribute name="ekReminderID" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isRequired" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="title" optional="YES" attributeType="String"/>
+        <relationship name="habit" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Habit" inverseName="reminderLinks" inverseEntity="Habit"/>
+    </entity>
+</model>
