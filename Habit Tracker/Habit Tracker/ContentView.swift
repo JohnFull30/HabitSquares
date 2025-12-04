@@ -7,7 +7,7 @@ import EventKit
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
-    // Pull Habit rows from Core Data (typed to the Habit NSManagedObject)
+    // Pull Habit rows from Core Data (typed to Habit NSManagedObject)
     @FetchRequest(
         entity: Habit.entity(),
         sortDescriptors: [NSSortDescriptor(keyPath: \Habit.name, ascending: true)],
@@ -18,7 +18,7 @@ struct ContentView: View {
     @State private var isShowingAddHabit = false
     @State private var isShowingReminders = false
 
-    // Map Core Data Habits -> HabitModel for the heatmap UI
+    // Map Core Data habits -> HabitModel for the heatmap UI
     private var habitModels: [HabitModel] {
         let demo = HabitDemoData.makeSampleHabits()
 
@@ -28,15 +28,15 @@ struct ContentView: View {
         }
 
         // Pair each Core Data habit with a demo habit to reuse the 30-day pattern
-        return Array(habitResults.enumerated()).map { index, habit in
+        return Array(habitResults.enumerated().map { index, habit in
             let base = index < demo.count ? demo[index] : demo[index % demo.count]
 
             let id = habit.id ?? base.id
             let name = habit.name ?? base.name
             let colorHex = habit.colorHex ?? base.colorHex
-            let trackingMode = habit.trackingMode ?? base.trackingMode
+            let trackingMode = base.trackingMode    // <- only use demo tracking mode for now
             let days = base.days // TODO: later map real HabitCompletion rows
-
+            
             return HabitModel(
                 id: id,
                 name: name,
@@ -44,29 +44,23 @@ struct ContentView: View {
                 trackingMode: trackingMode,
                 days: days
             )
-        }
+        })
     }
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(habitModels) { habit in
-                    HabitHeatmapView(habit: habit)
-                }
-            }
-            .listStyle(.plain)
-            .navigationTitle("HabitSquares")
-            .toolbar {
-                // "+" button on the right – add a new habit
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isShowingAddHabit = true
-                    } label: {
-                        Image(systemName: "plus")
+            ScrollView {
+                VStack(spacing: 16) {
+                    ForEach(habitModels) { habit in
+                        HabitHeatmapView(habit: habit)
+                            .padding(.horizontal)
                     }
                 }
-
-                // "list" button on the left – open Reminders debug sheet
+                .padding(.vertical)
+            }
+            .navigationTitle("HabitSquares")
+            .toolbar {
+                // Debug “list” button on the left
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         isShowingReminders = true
@@ -74,17 +68,47 @@ struct ContentView: View {
                         Image(systemName: "list.bullet")
                     }
                 }
+
+                // “+” button on the right
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isShowingAddHabit = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $isShowingAddHabit) {
+                AddHabitView()
+                    .environment(\.managedObjectContext, viewContext)
+            }
+            .sheet(isPresented: $isShowingReminders) {
+                RemindersDebugView()   // renamed to avoid conflict
+            }
+            .onAppear {
+                logCoreDataState()
+                // We no longer call ReminderService.checkAuthorization here,
+                // because that method does not exist in your ReminderService.
             }
         }
-        // Add Habit sheet
-        .sheet(isPresented: $isShowingAddHabit) {
-            AddHabitView()
-                .environment(\.managedObjectContext, viewContext)
+    }
+
+    // MARK: - Debug helpers
+
+    private func logCoreDataState() {
+        print("Core Data store loaded:")
+        if let storeDescription = PersistenceController.shared
+            .container.persistentStoreDescriptions.first,
+           let url = storeDescription.url {
+            print(url.path)
         }
-        // Simple Reminders debug sheet
-        .sheet(isPresented: $isShowingReminders) {
-            RemindersListView()
+
+        print("----- Core Data habits -----")
+        for habit in habitResults {
+            let name = habit.name ?? "Unnamed"
+            print("• \(name)")
         }
+        print("----- end -----")
     }
 }
 
@@ -115,9 +139,7 @@ struct AddHabitView: View {
             .navigationTitle("New Habit")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
@@ -130,9 +152,10 @@ struct AddHabitView: View {
     }
 
     private func saveHabit() {
-        // Create a new Habit row in Core Data
-        guard let entity = NSEntityDescription.entity(forEntityName: "Habit",
-                                                      in: viewContext) else {
+        guard let entity = NSEntityDescription.entity(
+            forEntityName: "Habit",
+            in: viewContext
+        ) else {
             print("⚠️ Could not find Habit entity")
             return
         }
@@ -140,7 +163,7 @@ struct AddHabitView: View {
         let habit = NSManagedObject(entity: entity, insertInto: viewContext)
         habit.setValue(UUID(), forKey: "id")
         habit.setValue(name, forKey: "name")
-        habit.setValue("#22C55E", forKey: "colorHex")        // default green
+        habit.setValue("#22CC55", forKey: "colorHex")
         habit.setValue(trackingMode, forKey: "trackingMode")
 
         do {
@@ -154,11 +177,12 @@ struct AddHabitView: View {
 
 // MARK: - Simple Reminders Debug Screen
 
-struct RemindersListView: View {
+/// Renamed from `RemindersListView` to avoid conflicting with any existing file.
+struct RemindersDebugView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var reminders: [EKReminder] = []
-    @State private var isLoading: Bool = true
+    @State private var isLoading = true
     @State private var errorMessage: String?
 
     var body: some View {
@@ -180,7 +204,8 @@ struct RemindersListView: View {
                                 .font(.headline)
 
                             if let date = reminder.dueDateComponents?.date {
-                                Text(date.formatted(date: .abbreviated, time: .shortened))
+                                Text(date.formatted(date: .abbreviated,
+                                                    time: .shortened))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -191,9 +216,7 @@ struct RemindersListView: View {
             .navigationTitle("Reminders")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
-                        dismiss()
-                    }
+                    Button("Close") { dismiss() }
                 }
             }
             .task {
@@ -206,14 +229,12 @@ struct RemindersListView: View {
         isLoading = true
         errorMessage = nil
 
-        ReminderService.shared.fetchOutstandingReminders { fetched in
-            // Hop back to the main actor for UI updates
+        // Use the labelled parameter `completion:` to match your ReminderService API
+        ReminderService.shared.fetchOutstandingReminders(completion: { fetched in
             Task { @MainActor in
                 self.reminders = fetched
-                // If you ever add error handling inside ReminderService,
-                // you can update errorMessage here.
                 self.isLoading = false
             }
-        }
+        })
     }
 }

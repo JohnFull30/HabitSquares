@@ -2,9 +2,9 @@ import Foundation
 import CoreData
 
 struct HabitSeeder {
+    /// Seeder currently disabled. Left here as a placeholder
+    /// so the app doesn't try to insert demo data on launch.
     static func insertSampleHabitsIfNeeded(in context: NSManagedObjectContext) {
-        // 🚫 Seeder temporarily disabled while we debug the Core Data setup.
-        // Leave this as a no-op so it can't crash the app.
-        print("HabitSeeder.insertSampleHabitsIfNeeded: (temporarily disabled)")
+        print("HabitSeeder disabled – no sample data inserted")
     }
 }

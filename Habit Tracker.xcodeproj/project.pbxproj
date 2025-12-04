@@ -73,6 +73,7 @@
 			membershipExceptions = (
 				"Habit Tracker/HabitSquaresWidget.swift",
 				"Habit Tracker/Info.plist",
+				"Habit-Tracker-Info.plist",
 			);
 			target = 523CBDE82ED010A900455486 /* Habit Tracker */;
 		};
@@ -420,6 +421,8 @@
 				DEVELOPMENT_TEAM = CRF77UR32V;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Habit-Tracker-Info.plist";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "HabitSquares uses your Reminders to know when you’ve completed your habits.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -453,6 +456,8 @@
 				DEVELOPMENT_TEAM = CRF77UR32V;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Habit-Tracker-Info.plist";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "HabitSquares uses your Reminders to know when you’ve completed your habits.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
