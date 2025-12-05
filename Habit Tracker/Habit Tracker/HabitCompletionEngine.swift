@@ -1,60 +1,57 @@
 import Foundation
-import EventKit
 import CoreData
+import EventKit
 
-/// Core logic for figuring out if a habit is "complete"
-/// based on its linked Apple Reminders.
+/// Computes whether a habit is "complete" based on its linked Reminders.
 struct HabitCompletionEngine {
 
+    /// Per-habit summary of required reminder links.
     struct Summary {
-        /// How many required reminder links this habit has
+        /// How many linked reminders are marked as required.
         let requiredCount: Int
-        /// How many of those required reminders are completed
+
+        /// How many of those required reminders are completed.
         let completedRequiredCount: Int
 
-        /// A habit is considered complete only when:
-        /// - there is at least one required reminder, and
-        /// - all required reminders are completed.
+        /// A habit is complete only if:
+        /// - it has at least one required reminder
+        /// - and all required reminders are completed.
         var isComplete: Bool {
             requiredCount > 0 && completedRequiredCount == requiredCount
         }
     }
 
-    /// Compute completion summary for **one habit** given:
-    /// - the HabitReminderLink rows for that habit
-    /// - the EKReminders we fetched from ReminderService
+    // MARK: - Core logic for a single habit
+
+    /// Compute a completion summary for a single habit based on its reminder links
+    /// and the current outstanding / completed EKReminders.
     static func summarize(
         links: [HabitReminderLink],
         reminders: [EKReminder]
     ) -> Summary {
 
-        // Only consider required links
+        // Only consider links that are marked as required.
         let requiredLinks = links.filter { $0.isRequired }
         let requiredCount = requiredLinks.count
 
-        // If there are no required reminders, this habit
-        // can never be considered "complete".
+        // If there are no required reminders, the habit can never be "complete".
         if requiredCount == 0 {
             return Summary(requiredCount: 0, completedRequiredCount: 0)
         }
 
-        // Build a lookup dictionary: reminderID -> EKReminder
+        // Build a lookup dictionary of reminders by their calendarItemIdentifier.
         let remindersById: [String: EKReminder] = Dictionary(
             uniqueKeysWithValues: reminders.map { ($0.calendarItemIdentifier, $0) }
         )
 
-        // Count how many required reminders are completed
+        // Count how many required links point to completed reminders.
         var completedRequiredCount = 0
 
         for link in requiredLinks {
-            // NOTE: We use KVC here instead of a generated property
-            // because Xcode hasn't surfaced `reminderIdentifier`
-            // as a Swift property yet.
-            guard
-                let id = link.value(forKey: "reminderIdentifier") as? String,
-                let reminder = remindersById[id]
-            else {
-                // No matching reminder in this fetch; skip
+            // reminderIdentifier is optional on the Core Data entity.
+            guard let id = link.reminderIdentifier,
+                  let reminder = remindersById[id] else {
+                // No matching reminder available in this fetch.
                 continue
             }
 
@@ -84,12 +81,13 @@ struct HabitCompletionEngine {
 
             print("===== Habit completion summaries (debug) =====")
             if habits.isEmpty {
-                print("⟡ No Habit rows in Core Data.")
+                print("No Habit rows in Core Data.")
+                print("===== end summaries =====")
+                return
             }
 
             for habit in habits {
-                // Core Data relationship `reminderLinks` is an NSSet;
-                // convert to a Swift Set<HabitReminderLink> then Array.
+                // Core Data relationship `reminderLinks` is an NSSet; convert to Swift Set.
                 let linkSet = habit.reminderLinks as? Set<HabitReminderLink> ?? []
                 let links = Array(linkSet)
 
@@ -99,13 +97,12 @@ struct HabitCompletionEngine {
                 print("""
                 Habit: \(name)
                   required reminders: \(summary.requiredCount)
-                  completed required reminders: \(summary.completedRequiredCount)
+                  completed required: \(summary.completedRequiredCount)
                   isComplete: \(summary.isComplete)
                 """)
             }
 
             print("===== end summaries =====")
-
         } catch {
             print("⚠️ HabitCompletionEngine: failed to fetch habits: \(error)")
         }

@@ -69,12 +69,13 @@ struct RemindersListView: View {
         errorMessage = nil
 
         ReminderService.shared.fetchOutstandingReminders { fetched in
-            // Debug: compute completion summaries for all habits
-            let context = PersistenceController.shared.container.viewContext
-            HabitCompletionEngine.debugSummaries(in: context, reminders: fetched)
-
             Task { @MainActor in
                 self.reminders = fetched
+
+                // 🔍 DEBUG: compute completion summaries for all habits
+                let context = PersistenceController.shared.container.viewContext
+                HabitCompletionEngine.debugSummaries(in: context, reminders: fetched)
+
                 self.isLoading = false
             }
         }

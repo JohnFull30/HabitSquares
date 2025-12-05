@@ -151,30 +151,24 @@ struct AddHabitView: View {
         }
     }
 
-    private func saveHabit() {
-        guard let entity = NSEntityDescription.entity(
-            forEntityName: "Habit",
-            in: viewContext
-        ) else {
-            print("⚠️ Could not find Habit entity")
-            return
-        }
 
-        let habit = NSManagedObject(entity: entity, insertInto: viewContext)
-        habit.setValue(UUID(), forKey: "id")
-        habit.setValue(name, forKey: "name")
-        habit.setValue("#22CC55", forKey: "colorHex")
-        habit.setValue(trackingMode, forKey: "trackingMode")
+    private func saveHabit() {
+        // Create a new Habit managed object using the generated class
+        let habit = Habit(context: viewContext)
+
+        habit.id = UUID()
+        habit.name = name
+        habit.colorHex = "#22CC55"          // temporary default color
+        habit.reminderIdentifier = nil      // we'll use HabitReminderLink instead
 
         do {
             try viewContext.save()
             dismiss()
         } catch {
-            print("Failed to save new habit: \(error)")
+            print("❌ Failed to save new habit: \(error)")
         }
     }
 }
-
 // MARK: - Simple Reminders Debug Screen
 
 /// Renamed from `RemindersListView` to avoid conflicting with any existing file.

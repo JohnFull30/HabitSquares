@@ -62,7 +62,6 @@ final class ReminderService {
         switch status {
         case .authorized, .fullAccess:
             let calendars = store.calendars(for: .reminder)
-
             let predicate = store.predicateForIncompleteReminders(
                 withDueDateStarting: nil,
                 ending: nil,
@@ -71,30 +70,34 @@ final class ReminderService {
 
             store.fetchReminders(matching: predicate) { reminders in
                 let safe = reminders ?? []
+
                 print("Reminders: fetched \(safe.count) item(s).")
 
-                DispatchQueue.main.async {
-                    completion(safe)
+                // 🧪 DEBUG: log each reminder's ID so we can link it to a habit
+                for reminder in safe {
+                    let title = reminder.title ?? "{no title}"
+                    print("""
+                    Reminder debug:
+                      title = \(title)
+                      id = \(reminder.calendarItemIdentifier)
+                      completed = \(reminder.isCompleted)
+                    """)
                 }
+
+                completion(safe)
             }
 
         case .writeOnly, .denied, .restricted:
-            print("Reminders: access denied/restricted/write-only in fetchOutstandingReminders.")
-            DispatchQueue.main.async {
-                completion([]) // no data, but not an error
-            }
+            print("Reminders: access denied/restricted/write-only.")
+            completion([])
 
         case .notDetermined:
             print("Reminders: status notDetermined in fetchOutstandingReminders – call requestAccessIfNeeded first.")
-            DispatchQueue.main.async {
-                completion([])
-            }
+            completion([])
 
         @unknown default:
-            print("Reminders: unknown authorization status in fetchOutstandingReminders: \(status)")
-            DispatchQueue.main.async {
-                completion([])
-            }
+            print("Reminders: unknown authorization status: \(status)")
+            completion([])
         }
     }
 }

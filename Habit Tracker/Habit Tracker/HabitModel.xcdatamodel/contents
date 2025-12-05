@@ -21,7 +21,7 @@
         <attribute name="ekReminderID" optional="YES" attributeType="String"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="isRequired" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
-        <attribute name="reminderIndentifier" optional="YES" attributeType="String"/>
+        <attribute name="reminderIdentifier" optional="YES" attributeType="String"/>
         <attribute name="title" optional="YES" attributeType="String"/>
         <relationship name="habit" maxCount="1" deletionRule="Nullify" destinationEntity="Habit" inverseName="reminderLinks" inverseEntity="Habit"/>
     </entity>
