@@ -100,4 +100,54 @@ final class ReminderService {
             completion([])
         }
     }
+
+    /// Fetch **today's** reminders (optionally including completed ones).
+    /// This is what we use for the debug summaries so that completed items
+    /// still show up in HabitCompletionEngine.
+    func fetchTodayReminders(includeCompleted: Bool = true,
+                             completion: @escaping ([EKReminder]) -> Void) {
+        let status = EKEventStore.authorizationStatus(for: .reminder)
+
+        switch status {
+        case .authorized, .fullAccess:
+            let calendars = store.calendars(for: .reminder)
+            let predicate = store.predicateForReminders(in: calendars)
+
+            store.fetchReminders(matching: predicate) { reminders in
+                let all = reminders ?? []
+
+                let startOfDay = Calendar.current.startOfDay(for: Date())
+                let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
+
+                let todayReminders = all.filter { reminder in
+                    guard let date = reminder.dueDateComponents?.date else { return false }
+                    return (startOfDay ... endOfDay).contains(date)
+                }
+
+                let finalReminders: [EKReminder]
+                if includeCompleted {
+                    finalReminders = todayReminders
+                } else {
+                    finalReminders = todayReminders.filter { !$0.isCompleted }
+                }
+
+                DispatchQueue.main.async {
+                    print("Reminders (today): fetched \(finalReminders.count) item(s). includeCompleted=\(includeCompleted)")
+                    completion(finalReminders)
+                }
+            }
+
+        case .writeOnly, .denied, .restricted:
+            print("Reminders: access denied/restricted/write-only in fetchTodayReminders.")
+            completion([])
+
+        case .notDetermined:
+            print("Reminders: status notDetermined in fetchTodayReminders – call requestAccessIfNeeded first.")
+            completion([])
+
+        @unknown default:
+            print("Reminders: unknown authorization status in fetchTodayReminders: \(status)")
+            completion([])
+        }
+    }
 }

@@ -50,7 +50,7 @@ struct RemindersListView: View {
                     }
                 }
             }
-            .navigationTitle("Reminders (Debug)")
+            .navigationTitle("Reminders dDebug")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
@@ -63,21 +63,25 @@ struct RemindersListView: View {
     }
 
     // MARK: - Debug fetch wrapper
-
     private func loadReminders() {
         isLoading = true
         errorMessage = nil
 
-        ReminderService.shared.fetchOutstandingReminders { fetched in
-            Task { @MainActor in
-                self.reminders = fetched
+        ReminderService.shared.fetchTodayReminders(includeCompleted: true) { fetched in
+            print("🔁 loadReminders completion, fetched \(fetched.count) total reminders for today")
 
-                // 🔍 DEBUG: compute completion summaries for all habits
-                let context = PersistenceController.shared.container.viewContext
-                HabitCompletionEngine.debugSummaries(in: context, reminders: fetched)
+            let outstanding = fetched.filter { !$0.isCompleted }
+            self.reminders = outstanding
 
-                self.isLoading = false
-            }
+            let context = PersistenceController.shared.container.viewContext
+
+            // 1) Still print summaries to the console
+            HabitCompletionEngine.debugSummaries(in: context, reminders: fetched)
+
+            // 2) NEW: write/update HabitCompletion rows for today
+            HabitCompletionEngine.upsertCompletionsForToday(in: context, reminders: fetched)
+
+            self.isLoading = false
         }
     }
 }

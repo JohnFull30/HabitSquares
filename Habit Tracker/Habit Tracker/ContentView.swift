@@ -83,7 +83,7 @@ struct ContentView: View {
                     .environment(\.managedObjectContext, viewContext)
             }
             .sheet(isPresented: $isShowingReminders) {
-                RemindersDebugView()   // renamed to avoid conflict
+                RemindersListView()   // renamed to avoid conflict
             }
             .onAppear {
                 logCoreDataState()
@@ -155,11 +155,23 @@ struct AddHabitView: View {
     private func saveHabit() {
         // Create a new Habit managed object using the generated class
         let habit = Habit(context: viewContext)
-
         habit.id = UUID()
         habit.name = name
-        habit.colorHex = "#22CC55"          // temporary default color
-        habit.reminderIdentifier = nil      // we'll use HabitReminderLink instead
+        habit.colorHex = "#22CC55"
+        habit.reminderIdentifier = nil  // legacy field, we don't use it anymore
+
+        // 🔗 TEMP: link this habit to your "Code" reminder so we can test completions
+        let link = HabitReminderLink(context: viewContext)
+        link.id = UUID()
+        link.isRequired = true
+        link.title = "Code"
+
+        // IMPORTANT: set this to the calendarItemIdentifier printed in the console
+        // when you open the Reminders debug screen.
+        link.reminderIdentifier = "142295CB-D15F-465F-AED7-14971D37CD2C"
+
+        // Connect the link back to the habit (Core Data relationship)
+        link.habit = habit
 
         do {
             try viewContext.save()
