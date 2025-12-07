@@ -61,29 +61,18 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		523CBE3F2ED01E0000455486 /* Exceptions for "Habit Tracker Widget" folder in "Habit Tracker WidgetExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 523CBE242ED01E0000455486 /* Habit Tracker WidgetExtension */;
-		};
-		52D7CF012ED1415A00A5F021 /* Exceptions for "Habit Tracker" folder in "Habit Tracker" target */ = {
+		521D692A2EE5E6B60065B7FC /* Exceptions for "Habit Tracker" folder in "Habit Tracker" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"Habit Tracker/HabitSquaresWidget.swift",
 				"Habit Tracker/Info.plist",
-				"Habit-Tracker-Info.plist",
 			);
 			target = 523CBDE82ED010A900455486 /* Habit Tracker */;
 		};
-		52D7CF042ED2228000A5F021 /* Exceptions for "Habit Tracker" folder in "Habit Tracker WidgetExtension" target */ = {
+		523CBE3F2ED01E0000455486 /* Exceptions for "Habit Tracker Widget" folder in "Habit Tracker WidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"Habit Tracker/CacheWriter 2.swift",
-				"Habit Tracker/HabitModels.swift",
-				"Habit Tracker/HabitSquaresWidget.swift",
-				"Habit Tracker/HeatmapView.swift",
+				Info.plist,
 			);
 			target = 523CBE242ED01E0000455486 /* Habit Tracker WidgetExtension */;
 		};
@@ -93,8 +82,7 @@
 		523CBDEB2ED010A900455486 /* Habit Tracker */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				52D7CF012ED1415A00A5F021 /* Exceptions for "Habit Tracker" folder in "Habit Tracker" target */,
-				52D7CF042ED2228000A5F021 /* Exceptions for "Habit Tracker" folder in "Habit Tracker WidgetExtension" target */,
+				521D692A2EE5E6B60065B7FC /* Exceptions for "Habit Tracker" folder in "Habit Tracker" target */,
 			);
 			path = "Habit Tracker";
 			sourceTree = "<group>";
