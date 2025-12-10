@@ -4,7 +4,7 @@ import CoreData
 
 /// Simple debug screen to inspect outstanding Apple Reminders.
 /// This is presented from ContentView as a sheet.
-struct RemindersListView: View {
+struct ReminderListView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var reminders: [EKReminder] = []
@@ -68,20 +68,31 @@ struct RemindersListView: View {
         errorMessage = nil
 
         ReminderService.shared.fetchTodayReminders(includeCompleted: true) { fetched in
-            print("🔁 loadReminders completion, fetched \(fetched.count) total reminders for today")
+            Task { @MainActor in
+                print("🟢 loadReminders completion, fetched \(fetched.count) total reminders for today")
 
-            let outstanding = fetched.filter { !$0.isCompleted }
-            self.reminders = outstanding
+                // 1) Update the UI list
+                self.reminders = fetched
 
-            let context = PersistenceController.shared.container.viewContext
+                // 1.5) Ensure CODE reminder is linked to the "Checking" habit (debug only)
+                let context = PersistenceController.shared.container.viewContext
+                if let codeReminder = fetched.first(where: {
+                    $0.title.caseInsensitiveCompare("code") == .orderedSame
+                }) {
+                    HabitSeeder.ensureCodeReminderLink(
+                        in: context,
+                        forReminderIdentifier: codeReminder.calendarItemIdentifier
+                    )
+                }
 
-            // 1) Still print summaries to the console
-            HabitCompletionEngine.debugSummaries(in: context, reminders: fetched)
+                // 2) Compute + log habit completion summaries
+                HabitCompletionEngine.debugSummaries(in: context, reminders: fetched)
 
-            // 2) NEW: write/update HabitCompletion rows for today
-            HabitCompletionEngine.upsertCompletionsForToday(in: context, reminders: fetched)
+                // 3) Upsert HabitCompletion rows for today for each habit
+                HabitCompletionEngine.upsertCompletionsForToday(in: context, reminders: fetched)
 
-            self.isLoading = false
+                self.isLoading = false
+            }
         }
     }
 }

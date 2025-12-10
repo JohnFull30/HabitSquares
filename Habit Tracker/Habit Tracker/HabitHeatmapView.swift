@@ -1,66 +1,160 @@
-//
-//  HabitHeatmapView.swift
-//  Habit Tracker
-//
-//  Created by John Fuller on 11/28/25.
-//
-
-import Foundation
 import SwiftUI
+import CoreData
 
-/// Displays a single habit as a GitHub-style heatmap row.
+/// A GitHub-style heatmap driven by Habit + HabitCompletion from Core Data.
 struct HabitHeatmapView: View {
-    let habit: HabitModel   // like props in React
+    @Environment(\.managedObjectContext) private var viewContext
 
-    // 7 columns = 1 week wide, days will wrap downward
-    private let columns = Array(repeating: GridItem(.fixed(20), spacing: 4), count: 7)
+    // All habits, sorted by name.
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Habit.name, ascending: true)],
+        animation: .default
+    )
+    private var habits: FetchedResults<Habit>
+
+    // All completions; we'll filter to the last 30 days in-memory.
+    @FetchRequest(
+        sortDescriptors: [
+            NSSortDescriptor(keyPath: \HabitCompletion.date, ascending: true)
+        ],
+        animation: .default
+    )
+    private var completions: FetchedResults<HabitCompletion>
+
+    /// How many days back to show in the heatmap.
+    private let dayCount: Int = 30
+
+    private var today: Date {
+        Calendar.current.startOfDay(for: Date())
+    }
+
+    /// Dates for the last `dayCount` days, oldest -> newest.
+    private var dayRange: [Date] {
+        let cal = Calendar.current
+        return (0..<dayCount)
+            .compactMap { offset in
+                cal.date(byAdding: .day, value: -offset, to: today)
+            }
+            .map { cal.startOfDay(for: $0) }
+            .sorted()
+    }
+
+    /// Map of (habitObjectID, startOfDay) -> HabitCompletion
+    private var completionLookup: [CompletionKey: HabitCompletion] {
+        let cal = Calendar.current
+        let cutoff = cal.date(byAdding: .day, value: -dayCount, to: today) ?? today
+
+        var dict: [CompletionKey: HabitCompletion] = [:]
+
+        for completion in completions {
+            guard let habit = completion.habit,
+                  let date = completion.date,
+                  date >= cutoff
+            else { continue }
+
+            let day = cal.startOfDay(for: date)
+            let key = CompletionKey(habitID: habit.objectID, day: day)
+            dict[key] = completion
+        }
+
+        return dict
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(habit.name)
-                .font(.title2.bold())
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 16) {
+                ForEach(habits) { habit in
+                    HabitRowView(
+                        habit: habit,
+                        days: dayRange,
+                        completions: completionLookup,
+                        today: today
+                    )
+                }
+            }
+            .padding()
+        }
+    }
 
-            Text("Last \(habit.days.count) days")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+    /// Key for looking up a completion by habit + day.
+    fileprivate struct CompletionKey: Hashable {
+        let habitID: NSManagedObjectID
+        let day: Date
 
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 4) {
-                ForEach(habit.days) { day in
-                    daySquare(for: day)
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(habitID)
+            hasher.combine(day.timeIntervalSince1970)
+        }
+
+        static func == (lhs: CompletionKey, rhs: CompletionKey) -> Bool {
+            lhs.habitID == rhs.habitID && lhs.day == rhs.day
+        }
+    }
+}
+
+/// One row in the heatmap for a single Habit.
+private struct HabitRowView: View {
+    let habit: Habit
+    let days: [Date]
+    let completions: [HabitHeatmapView.CompletionKey: HabitCompletion]
+    let today: Date
+
+    private var name: String {
+        habit.name ?? "Unnamed"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(name)
+                .font(.headline)
+
+            Text("Last 30 days")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    ForEach(days, id: \.self) { day in
+                        DaySquare(
+                            isComplete: completion(for: day)?.isComplete ?? false,
+                            isToday: Calendar.current.isDate(day, inSameDayAs: today)
+                        )
+                        .accessibilityLabel("\(name) on \(formatted(day))")
+                    }
                 }
             }
         }
-        .padding()
     }
 
-    // MARK: - Square View
+    private func completion(for day: Date) -> HabitCompletion? {
+        let key = HabitHeatmapView.CompletionKey(habitID: habit.objectID, day: day)
+        return completions[key]
+    }
 
-    @ViewBuilder
-    private func daySquare(for day: HabitDay) -> some View {
+    private func formatted(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateStyle = .short
+        return f.string(from: date)
+    }
+}
+
+/// A single day square in the heatmap.
+private struct DaySquare: View {
+    let isComplete: Bool
+    let isToday: Bool
+
+    var body: some View {
         RoundedRectangle(cornerRadius: 4)
-            .fill(squareColor(for: day))
-            .frame(width: 20, height: 20)
+            .fill(isComplete ? Color.green : Color.gray.opacity(0.2))
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(Color.black.opacity(0.05), lineWidth: 1)
+                    .stroke(lineWidth: isToday ? 2 : 0)
+                    .opacity(isToday ? 1 : 0)
             )
-            .accessibilityLabel(
-                Text("\(formattedDate(day.date)): \(day.isComplete ? "Complete" : "Incomplete")")
-            )
-            .help(formattedDate(day.date))
-    }
-
-    private func squareColor(for day: HabitDay) -> Color {
-        day.isComplete ? Color.green : Color.gray.opacity(0.2)
-    }
-
-    private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: date)
+            .frame(width: 16, height: 16)
     }
 }
 
 #Preview {
-    HabitHeatmapView(habit: HabitDemoData.makeSampleHabit())
+    Text("HabitHeatmapView preview placeholder")
 }
