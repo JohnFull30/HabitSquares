@@ -1,160 +1,140 @@
 import SwiftUI
 import CoreData
 
-/// A GitHub-style heatmap driven by Habit + HabitCompletion from Core Data.
+/// One row in the heatmap for a single Habit.
 struct HabitHeatmapView: View {
-    @Environment(\.managedObjectContext) private var viewContext
+    // The Core Data habit this row represents.
+    let habit: Habit
 
-    // All habits, sorted by name.
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Habit.name, ascending: true)],
-        animation: .default
-    )
-    private var habits: FetchedResults<Habit>
+    // How many days back we show in the grid.
+    private let totalDays: Int = 30
 
-    // All completions; we'll filter to the last 30 days in-memory.
-    @FetchRequest(
-        sortDescriptors: [
-            NSSortDescriptor(keyPath: \HabitCompletion.date, ascending: true)
-        ],
-        animation: .default
-    )
-    private var completions: FetchedResults<HabitCompletion>
+    // GitHub-style constants — tweak these to change look
+    private let cellSize: CGFloat = 12      // square size
+    private let cellSpacing: CGFloat = 3    // spacing between squares
 
-    /// How many days back to show in the heatmap.
-    private let dayCount: Int = 30
-
-    private var today: Date {
-        Calendar.current.startOfDay(for: Date())
+    // 7 columns (Mon–Sun style)
+    private var columns: [GridItem] {
+        Array(
+            repeating: GridItem(.fixed(cellSize), spacing: cellSpacing),
+            count: 7
+        )
     }
 
-    /// Dates for the last `dayCount` days, oldest -> newest.
-    private var dayRange: [Date] {
-        let cal = Calendar.current
-        return (0..<dayCount)
-            .compactMap { offset in
-                cal.date(byAdding: .day, value: -offset, to: today)
-            }
-            .map { cal.startOfDay(for: $0) }
-            .sorted()
+    // MARK: - Derived data
+
+    /// Array of dates from oldest -> newest (left to right).
+    private var days: [Date] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
+        return (0..<totalDays).compactMap { offset in
+            calendar.date(
+                byAdding: .day,
+                value: -(totalDays - 1 - offset),
+                to: today
+            )
+        }
     }
 
-    /// Map of (habitObjectID, startOfDay) -> HabitCompletion
-    private var completionLookup: [CompletionKey: HabitCompletion] {
-        let cal = Calendar.current
-        let cutoff = cal.date(byAdding: .day, value: -dayCount, to: today) ?? today
+    /// Map each day to whether that habit is complete.
+    /// Adjust the relationship name if your model uses something else.
+    private var completionsByDay: [Date: Bool] {
+        guard let rawCompletions = habit.completions as? Set<HabitCompletion> else {
+            return [:]
+        }
 
-        var dict: [CompletionKey: HabitCompletion] = [:]
+        let calendar = Calendar.current
+        var dict: [Date: Bool] = [:]
 
-        for completion in completions {
-            guard let habit = completion.habit,
-                  let date = completion.date,
-                  date >= cutoff
-            else { continue }
-
-            let day = cal.startOfDay(for: date)
-            let key = CompletionKey(habitID: habit.objectID, day: day)
-            dict[key] = completion
+        for completion in rawCompletions {
+            guard let date = completion.date else { continue }
+            let day = calendar.startOfDay(for: date)
+            dict[day] = completion.isComplete
         }
 
         return dict
     }
 
-    var body: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 16) {
-                ForEach(habits) { habit in
-                    HabitRowView(
-                        habit: habit,
-                        days: dayRange,
-                        completions: completionLookup,
-                        today: today
-                    )
-                }
-            }
-            .padding()
-        }
-    }
-
-    /// Key for looking up a completion by habit + day.
-    fileprivate struct CompletionKey: Hashable {
-        let habitID: NSManagedObjectID
-        let day: Date
-
-        func hash(into hasher: inout Hasher) {
-            hasher.combine(habitID)
-            hasher.combine(day.timeIntervalSince1970)
-        }
-
-        static func == (lhs: CompletionKey, rhs: CompletionKey) -> Bool {
-            lhs.habitID == rhs.habitID && lhs.day == rhs.day
-        }
-    }
-}
-
-/// One row in the heatmap for a single Habit.
-private struct HabitRowView: View {
-    let habit: Habit
-    let days: [Date]
-    let completions: [HabitHeatmapView.CompletionKey: HabitCompletion]
-    let today: Date
-
-    private var name: String {
-        habit.name ?? "Unnamed"
-    }
+    // MARK: - View
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(name)
+            Text(habit.name ?? "Unnamed")
                 .font(.headline)
 
-            Text("Last 30 days")
+            Text("Last \(totalDays) days")
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
-                    ForEach(days, id: \.self) { day in
-                        DaySquare(
-                            isComplete: completion(for: day)?.isComplete ?? false,
-                            isToday: Calendar.current.isDate(day, inSameDayAs: today)
-                        )
-                        .accessibilityLabel("\(name) on \(formatted(day))")
-                    }
+            LazyVGrid(
+                columns: columns,
+                alignment: .leading,
+                spacing: cellSpacing
+            ) {
+                ForEach(days, id: \.self) { day in
+                    let calendar = Calendar.current
+                    let key = calendar.startOfDay(for: day)
+                    let isComplete = completionsByDay[key] ?? false
+                    let isToday = calendar.isDateInToday(day)
+
+                    DaySquareView(
+                        isComplete: isComplete,
+                        isToday: isToday
+                    )
+                    .accessibilityLabel(
+                        accessibilityLabel(for: day, isComplete: isComplete)
+                    )
                 }
             }
+            .padding(.vertical, 4)
         }
+        .padding(.horizontal)
     }
 
-    private func completion(for day: Date) -> HabitCompletion? {
-        let key = HabitHeatmapView.CompletionKey(habitID: habit.objectID, day: day)
-        return completions[key]
-    }
+    // MARK: - Accessibility
 
-    private func formatted(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateStyle = .short
-        return f.string(from: date)
+    private func accessibilityLabel(for day: Date, isComplete: Bool) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        let dateString = formatter.string(from: day)
+        let status = isComplete ? "complete" : "incomplete"
+        return "\(dateString): \(status)"
     }
 }
 
-/// A single day square in the heatmap.
-private struct DaySquare: View {
+// MARK: - Single square
+
+private struct DaySquareView: View {
     let isComplete: Bool
     let isToday: Bool
 
-    var body: some View {
-        RoundedRectangle(cornerRadius: 4)
-            .fill(isComplete ? Color.green : Color.gray.opacity(0.2))
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(lineWidth: isToday ? 2 : 0)
-                    .opacity(isToday ? 1 : 0)
-            )
-            .frame(width: 16, height: 16)
+    private var fillColor: Color {
+        if isComplete {
+            // Completed days
+            return Color.green
+        } else {
+            // Empty days
+            return Color.gray.opacity(0.2)
+        }
     }
-}
 
-#Preview {
-    Text("HabitHeatmapView preview placeholder")
+    private var borderColor: Color {
+        if isToday {
+            // Highlight today
+            return Color.primary.opacity(0.8)
+        } else {
+            return Color.secondary.opacity(0.3)
+        }
+    }
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 2)
+            .fill(fillColor)
+            .overlay(
+                RoundedRectangle(cornerRadius: 2)
+                    .stroke(borderColor, lineWidth: 1)
+            )
+            .frame(width: 12, height: 12)   // match `cellSize`
+    }
 }

@@ -4,61 +4,73 @@ import CoreData
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
+    // Core Data fetch for all habits
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Habit.name, ascending: true)],
+        animation: .default
+    )
+    private var habitResults: FetchedResults<Habit>
+
     @State private var isShowingReminders = false
     @State private var isShowingAddHabit = false
 
     var body: some View {
         NavigationStack {
-            // Main heatmap
-            HabitHeatmapView()
-                .navigationTitle("HabitSquares")
-
-                // Toolbar buttons
-                .toolbar {
-                    // Left: Reminders debug list
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            isShowingReminders = true
-                        } label: {
-                            Image(systemName: "list.bullet")
-                        }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(habitResults) { habit in
+                        HabitHeatmapView(habit: habit)
                     }
-
-                    // Right: Add habit
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            isShowingAddHabit = true
-                        } label: {
-                            Image(systemName: "plus")
-                        }
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+            }
+            .navigationTitle("HabitSquares")
+            .toolbar {
+                // Debug “list” button on the left
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        isShowingReminders = true
+                    } label: {
+                        Image(systemName: "list.bullet")
                     }
                 }
 
-                // Add Habit sheet
-                .sheet(isPresented: $isShowingAddHabit) {
-                    AddHabitView()
-                        .environment(\.managedObjectContext, viewContext)
+                // "+" button on the right
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isShowingAddHabit = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
                 }
-
-                // Reminders debug sheet
-                .sheet(isPresented: $isShowingReminders) {
-                    ReminderListView()
-                }
-
-                .onAppear {
-                    logCoreDataState()
-                }
+            }
+            // Add Habit sheet
+            .sheet(isPresented: $isShowingAddHabit) {
+                AddHabitView()
+                    .environment(\.managedObjectContext, viewContext)
+            }
+            // Reminders debug sheet
+            .sheet(isPresented: $isShowingReminders) {
+                ReminderListView()
+            }
+            .onAppear {
+                logCoreDataState()
+            }
         }
     }
 
     // MARK: - Debug helpers
 
     private func logCoreDataState() {
-        print("Core Data store loaded:")
+        print("✅ Core Data store loaded:")
 
         if let storeDescription = PersistenceController.shared
-            .container.persistentStoreDescriptions.first,
-           let url = storeDescription.url {
+            .container
+            .persistentStoreDescriptions
+            .first,
+           let url = storeDescription.url
+        {
             print(url.path)
         }
 
@@ -72,7 +84,7 @@ struct ContentView: View {
             print("===== Core Data habits =====")
             for habit in habits {
                 let name = habit.name ?? "Unnamed"
-                print("• \(name)")
+ 
             }
             print("===== end =====")
         } catch {
