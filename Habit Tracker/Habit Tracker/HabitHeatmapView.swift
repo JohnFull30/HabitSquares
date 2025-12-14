@@ -4,8 +4,8 @@ import CoreData
 /// One row in the heatmap for a single Habit.
 struct HabitHeatmapView: View {
     // The Core Data habit this row represents.
-    let habit: Habit
-
+    @ObservedObject var habit: Habit
+    
     // How many days back we show in the grid.
     private let totalDays: Int = 30
 
