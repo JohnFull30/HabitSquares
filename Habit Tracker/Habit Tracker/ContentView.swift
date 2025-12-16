@@ -44,6 +44,7 @@ struct ContentView: View {
                         ForEach(habitResults) { habit in
                             HabitHeatmapView(habit: habit)
                         }
+                        .onDelete(perform: deleteHabits)
                     }
                     .listStyle(.plain)
                 }
@@ -111,6 +112,23 @@ struct ContentView: View {
             }
         }
     }
+    
+    private func deleteHabits(at offsets: IndexSet) {
+        // Grab the Habit objects at these indices and delete them
+        for index in offsets {
+            let habit = habitResults[index]
+            viewContext.delete(habit)
+        }
+
+        do {
+            try viewContext.save()
+            print("🗑 Deleted \(offsets.count) habit(s).")
+        } catch {
+            viewContext.rollback()
+            print("⚠️ Failed to delete habit(s): \(error)")
+        }
+    }
+    
 
     // MARK: - Debug helpers
 
@@ -122,3 +140,4 @@ struct ContentView: View {
         print("===== end =====")
     }
 }
+

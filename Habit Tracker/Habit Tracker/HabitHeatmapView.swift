@@ -5,97 +5,122 @@ import CoreData
 struct HabitHeatmapView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
-    /// Core Data habit for this row
+    // Core Data habit
     @ObservedObject var habit: Habit
 
-    /// All completion records for this habit (sorted by date)
-    @FetchRequest private var completions: FetchedResults<HabitCompletion>
+    // MARK: - Display tuning
 
-    // MARK: - Init
+    /// How many days to show (last 30 days)
+    private let dayCount: Int = 30
 
-    init(habit: Habit) {
-        self.habit = habit
+    /// Visual constants
+    private let squareSize: CGFloat = 12
+    private let squareCorner: CGFloat = 3
+    private let squareSpacing: CGFloat = 3
 
-        let request: NSFetchRequest<HabitCompletion> = HabitCompletion.fetchRequest()
-        request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \HabitCompletion.date, ascending: true)
-        ]
-        request.predicate = NSPredicate(format: "habit == %@", habit)
-
-        _completions = FetchRequest(fetchRequest: request, animation: .default)
+    /// Grid layout (columns × rows)
+    private let columns: Int = 6
+    private var rows: Int {
+        Int(ceil(Double(dayCount) / Double(columns)))
     }
 
-    // MARK: - Heatmap config
+    // MARK: - Fetch completions
 
-    /// How many days to show in the heatmap row (3 weeks)
-    private let daysToShow: Int = 21
+    @FetchRequest private var completions: FetchedResults<HabitCompletion>
 
-    /// Oldest → newest (today) dates to show
-    private var displayedDates: [Date] {
+    init(habit: Habit) {
+        self._habit = ObservedObject(initialValue: habit)
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let start = calendar.date(byAdding: .day, value: -(dayCount - 1), to: today) ?? today
+
+        let predicate = NSPredicate(
+            format: "habit == %@ AND date >= %@ AND date <= %@",
+            habit,
+            start as NSDate,
+            today as NSDate
+        )
+
+        _completions = FetchRequest(
+            entity: HabitCompletion.entity(),
+            sortDescriptors: [],
+            predicate: predicate
+        )
+    }
+
+    /// Dictionary keyed by start-of-day Date → HabitCompletion
+    private var completionByDay: [Date: HabitCompletion] {
+        let calendar = Calendar.current
+        return Dictionary(
+            uniqueKeysWithValues: completions.compactMap { completion in
+                guard let date = completion.date else { return nil }
+                let dayKey = calendar.startOfDay(for: date)
+                return (dayKey, completion)
+            }
+        )
+    }
+
+    /// Ordered list of Dates we’ll render (oldest → newest)
+    private var dayDates: [Date] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
 
-        // Oldest on the left, today on the right
-        return (0..<daysToShow).reversed().compactMap { offset in
-            calendar.date(byAdding: .day, value: -offset, to: today)
-        }
-    }
-
-    /// Find the completion entity for a given calendar day (if any)
-    private func completion(for day: Date) -> HabitCompletion? {
-        let calendar = Calendar.current
-
-        return completions.first { completion in
-            guard let date = completion.date else { return false }
-            return calendar.isDate(date, inSameDayAs: day)
+        return (0..<dayCount).compactMap { offset in
+            // We want oldest on the left, newest on the right
+            let daysAgo = dayCount - 1 - offset
+            return calendar.date(byAdding: .day, value: -daysAgo, to: today)
         }
     }
 
     // MARK: - Body
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            // Habit name column
+        // Card-style row so it feels closer to the mock
+        VStack(alignment: .leading, spacing: 8) {
+            // Title + subtitle
             Text(habit.name ?? "Habit")
                 .font(.headline)
-                .frame(width: 90, alignment: .leading)
 
-            // Heatmap squares
-            HStack(spacing: 4) {
-                ForEach(displayedDates, id: \.self) { day in
-                    let completion = completion(for: day)
-                    let isComplete = completion?.isComplete ?? false
-                    let hasData = completion != nil
+            Text("Last \(dayCount) days")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-                    RoundedRectangle(cornerRadius: 3)
-                        .strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1)
-                        .background(
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(isComplete ? Color.green : Color.clear)
-                        )
-                        .frame(width: 14, height: 14)
-                        .opacity(hasData ? 1.0 : 0.2)
-                        .accessibilityLabel(
-                            Text(accessibilityLabel(for: day, completion: completion))
-                        )
+            // GitHub-style grid
+            VStack(spacing: squareSpacing) {
+                let calendar = Calendar.current
+
+                ForEach(0..<rows, id: \.self) { row in
+                    HStack(spacing: squareSpacing) {
+                        ForEach(0..<columns, id: \.self) { column in
+                            let index = row * columns + column
+
+                            if index < dayDates.count {
+                                let date = dayDates[index]
+                                let dayKey = calendar.startOfDay(for: date)
+                                let completion = completionByDay[dayKey]
+                                let isComplete = completion?.isComplete ?? false
+
+                                RoundedRectangle(cornerRadius: squareCorner, style: .continuous)
+                                    .fill(isComplete
+                                          ? Color.green
+                                          : Color(UIColor.systemGray5))
+                                    .frame(width: squareSize, height: squareSize)
+                            } else {
+                                // Empty spacer so last row still lines up
+                                Color.clear
+                                    .frame(width: squareSize, height: squareSize)
+                            }
+                        }
+                    }
                 }
             }
         }
-        .padding(.vertical, 4)
-    }
-
-    // MARK: - Accessibility
-
-    private func accessibilityLabel(for day: Date, completion: HabitCompletion?) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        let dateString = formatter.string(from: day)
-
-        guard let completion else {
-            return "\(habit.name ?? "Habit") – \(dateString): no completion"
-        }
-
-        let status = completion.isComplete ? "complete" : "incomplete"
-        return "\(habit.name ?? "Habit") – \(dateString): \(status)"
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(UIColor.systemBackground))
+                .shadow(color: Color.black.opacity(0.03), radius: 4, x: 0, y: 2)
+        )
     }
 }
