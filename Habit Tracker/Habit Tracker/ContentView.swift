@@ -3,6 +3,7 @@ import CoreData
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.scenePhase) private var scenePhase
 
     // Core Data fetch for all habits
     @FetchRequest(
@@ -11,51 +12,102 @@ struct ContentView: View {
     )
     private var habitResults: FetchedResults<Habit>
 
-    @State private var isShowingReminders = false
-    @State private var isShowingAddHabit = false
+    // Which sheet is currently active
+    @State private var activeSheet: ActiveSheet?
+
+    private enum ActiveSheet: Identifiable {
+        case addHabit
+        case reminders
+
+        var id: Int {
+            switch self {
+            case .addHabit: return 0
+            case .reminders: return 1
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(habitResults) { habit in
-                        HabitHeatmapView(habit: habit)
+            Group {
+                if habitResults.isEmpty {
+                    VStack(spacing: 12) {
+                        Text("No habits yet.")
+                            .font(.headline)
+                        Text("Tap the + button to add your first habit.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(habitResults) { habit in
+                            HabitHeatmapView(habit: habit)
+                        }
+                    }
+                    .listStyle(.plain)
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
             }
             .navigationTitle("HabitSquares")
             .toolbar {
-                // Debug “list” button on the left
+                // Left: Reminders debug / linking
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        isShowingReminders = true
+                        if !habitResults.isEmpty {
+                            activeSheet = .reminders
+                        }
                     } label: {
                         Image(systemName: "list.bullet")
                     }
+                    .disabled(habitResults.isEmpty)
                 }
 
-                // "+" button on the right
+                // Right: Add habit
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        isShowingAddHabit = true
+                        activeSheet = .addHabit
                     } label: {
                         Image(systemName: "plus")
                     }
                 }
             }
-            // Add Habit sheet
-            .sheet(isPresented: $isShowingAddHabit) {
+        }
+        // Single sheet that switches on ActiveSheet
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .addHabit:
                 AddHabitView()
                     .environment(\.managedObjectContext, viewContext)
+
+            case .reminders:
+                if let firstHabit = habitResults.first {
+                    ReminderListView(habit: firstHabit)
+                        .environment(\.managedObjectContext, viewContext)
+                } else {
+                    Text("No habits yet. Add one first.")
+                        .presentationDetents([.medium])
+                }
             }
-            // Reminders debug sheet
-            .sheet(isPresented: $isShowingReminders) {
-                ReminderListView()
+        }
+        .onAppear {
+            logCoreDataState()
+            syncTodayFromReminders()
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .active {
+                syncTodayFromReminders()
             }
-            .onAppear {
-                logCoreDataState()
+        }
+    }
+
+    // MARK: - Sync Reminders → (future) HabitCompletion
+
+    private func syncTodayFromReminders() {
+        ReminderService.shared.fetchTodayReminders(includeCompleted: true) { fetched in
+            Task { @MainActor in
+                // TODO: Wire back into HabitCompletionEngine when we confirm the exact API.
+                // For now, just log so we can verify this is being called.
+                print("🔄 syncTodayFromReminders: fetched \(fetched.count) reminders for today.")
             }
         }
     }
@@ -63,32 +115,10 @@ struct ContentView: View {
     // MARK: - Debug helpers
 
     private func logCoreDataState() {
-        print("✅ Core Data store loaded:")
-
-        if let storeDescription = PersistenceController.shared
-            .container
-            .persistentStoreDescriptions
-            .first,
-           let url = storeDescription.url
-        {
-            print(url.path)
+        print("===== Core Data habits =====")
+        for habit in habitResults {
+            print("• \(habit.name ?? "<Unnamed>")")
         }
-
-        let request: NSFetchRequest<Habit> = Habit.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
-
-        do {
-            let context = PersistenceController.shared.container.viewContext
-            let habits = try context.fetch(request)
-
-            print("===== Core Data habits =====")
-            for habit in habits {
-                let name = habit.name ?? "Unnamed"
- 
-            }
-            print("===== end =====")
-        } catch {
-            print("⚠️ logCoreDataState: failed to fetch habits: \(error)")
-        }
+        print("===== end =====")
     }
 }
