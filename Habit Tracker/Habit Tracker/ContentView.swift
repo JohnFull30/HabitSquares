@@ -15,27 +15,25 @@ struct ContentView: View {
     // Which sheet is currently active
     @State private var activeSheet: ActiveSheet?
 
+    // MARK: - Sheet routing
+
     private enum ActiveSheet: Identifiable {
         case addHabit
-        case reminders
+        case reminders(Habit)
 
-        var id: Int {
+        // Unique ID so SwiftUI can distinguish sheets
+        var id: String {
             switch self {
-            case .addHabit: return 0
-            case .reminders: return 1
+            case .addHabit:
+                return "addHabit"
+            case .reminders(let habit):
+                // Use the Core Data objectID URI as a stable identifier
+                return "reminders-\(habit.objectID.uriRepresentation().absoluteString)"
             }
         }
     }
-    
-    private func logCoreDataHabits(_ label: String) {
-        print("===== Core Data habits (\(label)) =====")
-        for habit in habitResults {
-            let id = habit.id?.uuidString ?? "nil"
-            let name = habit.name ?? "<unnamed>"
-            print("- id: \(id), name: \(name)")
-        }
-        print("===== end =====")
-    }
+
+    // MARK: - Body
 
     var body: some View {
         NavigationStack {
@@ -53,6 +51,12 @@ struct ContentView: View {
                     List {
                         ForEach(habitResults) { habit in
                             HabitHeatmapView(habit: habit)
+                                // Make the whole row tappable, not just the text
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    // 🔑 Open reminders sheet for *this* habit
+                                    activeSheet = .reminders(habit)
+                                }
                         }
                         .onDelete(perform: deleteHabits)
                     }
@@ -64,8 +68,9 @@ struct ContentView: View {
                 // Left: Reminders debug / linking
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        if !habitResults.isEmpty {
-                            activeSheet = .reminders
+                        // Keep a "debug" entry point: use the first habit if it exists
+                        if let firstHabit = habitResults.first {
+                            activeSheet = .reminders(firstHabit)
                         }
                     } label: {
                         Image(systemName: "list.bullet")
@@ -89,29 +94,18 @@ struct ContentView: View {
             case .addHabit:
                 AddHabitView()
                     .environment(\.managedObjectContext, viewContext)
-                    .onDisappear {
-                        // Sheet just closed (after Save or Cancel)
-                        logCoreDataHabits("after AddHabitView")
-                    }
 
-            case .reminders:
-                if let firstHabit = habitResults.first {
-                    ReminderListView(habit: firstHabit)
-                        .environment(\.managedObjectContext, viewContext)
-                        .onDisappear {
-                            logCoreDataHabits("after ReminderListView")
-                        }
-                } else {
-                    Text("No habits yet. Add one first.")
-                        .presentationDetents([.medium])
-                }
+            case .reminders(let habit):
+                // ✅ Now driven by whichever habit you tapped
+                ReminderListView(habit: habit)
+                    .environment(\.managedObjectContext, viewContext)
             }
         }
         .onAppear {
             logCoreDataHabits("onAppear")
             syncTodayFromReminders()
         }
-        .onChange(of: scenePhase) { oldPhase, newPhase in
+        .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 syncTodayFromReminders()
             }
@@ -120,23 +114,23 @@ struct ContentView: View {
 
     // MARK: - Sync Reminders → (future) HabitCompletion
 
-    // MARK: – Sync Reminders → HabitCompletion
     private func syncTodayFromReminders() {
         ReminderService.shared.fetchTodayReminders(includeCompleted: true) { fetched in
-            print("✅ syncTodayFromReminders: fetched \(fetched.count) reminders for today.")
-
-            // IMPORTANT: actually update HabitCompletion here
             Task { @MainActor in
+                print("✅ syncTodayFromReminders: fetched \(fetched.count) reminders for today.")
+
+                // When you’re ready, wire this back into HabitCompletionEngine
                 HabitCompletionEngine.upsertCompletionsForToday(
                     in: viewContext,
-                    reminders: fetched
+                    reminders: fetched,
                 )
             }
         }
     }
-    
+
+    // MARK: - Delete habits
+
     private func deleteHabits(at offsets: IndexSet) {
-        // Grab the Habit objects at these indices and delete them
         for index in offsets {
             let habit = habitResults[index]
             viewContext.delete(habit)
@@ -144,22 +138,21 @@ struct ContentView: View {
 
         do {
             try viewContext.save()
-            print("🗑 Deleted \(offsets.count) habit(s).")
+            print("✅ Deleted \(offsets.count) habit(s).")
         } catch {
-            viewContext.rollback()
-            print("⚠️ Failed to delete habit(s): \(error)")
+            print("❌ Failed to delete habit(s): \(error)")
         }
     }
-    
 
     // MARK: - Debug helpers
 
-    private func logCoreDataState() {
-        print("===== Core Data habits =====")
+    private func logCoreDataHabits(_ label: String) {
+        print("===== Core Data habits (\(label)) =====")
         for habit in habitResults {
-            print("• \(habit.name ?? "<Unnamed>")")
+            let id = habit.id?.uuidString ?? "nil"
+            let name = habit.name ?? "<unnamed>"
+            print(" - id: \(id), name: \(name)")
         }
         print("===== end =====")
     }
 }
-
