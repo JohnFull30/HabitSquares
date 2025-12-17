@@ -54,6 +54,7 @@ struct HabitDemoData {
         return namesAndColors.map { name, color in
             // Reuse the existing single-habit generator, but override name/color.
             var habit = makeSampleHabit()
+            print("✏️ HabitDemoData.makeSampleHabits: setting demo habit name='\(name)'")
             habit.name = name
             habit.colorHex = color
             return habit

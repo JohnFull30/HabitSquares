@@ -26,6 +26,16 @@ struct ContentView: View {
             }
         }
     }
+    
+    private func logCoreDataHabits(_ label: String) {
+        print("===== Core Data habits (\(label)) =====")
+        for habit in habitResults {
+            let id = habit.id?.uuidString ?? "nil"
+            let name = habit.name ?? "<unnamed>"
+            print("- id: \(id), name: \(name)")
+        }
+        print("===== end =====")
+    }
 
     var body: some View {
         NavigationStack {
@@ -79,11 +89,18 @@ struct ContentView: View {
             case .addHabit:
                 AddHabitView()
                     .environment(\.managedObjectContext, viewContext)
+                    .onDisappear {
+                        // Sheet just closed (after Save or Cancel)
+                        logCoreDataHabits("after AddHabitView")
+                    }
 
             case .reminders:
                 if let firstHabit = habitResults.first {
                     ReminderListView(habit: firstHabit)
                         .environment(\.managedObjectContext, viewContext)
+                        .onDisappear {
+                            logCoreDataHabits("after ReminderListView")
+                        }
                 } else {
                     Text("No habits yet. Add one first.")
                         .presentationDetents([.medium])
@@ -91,7 +108,7 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            logCoreDataState()
+            logCoreDataHabits("onAppear")
             syncTodayFromReminders()
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
@@ -103,12 +120,17 @@ struct ContentView: View {
 
     // MARK: - Sync Reminders → (future) HabitCompletion
 
+    // MARK: – Sync Reminders → HabitCompletion
     private func syncTodayFromReminders() {
         ReminderService.shared.fetchTodayReminders(includeCompleted: true) { fetched in
+            print("✅ syncTodayFromReminders: fetched \(fetched.count) reminders for today.")
+
+            // IMPORTANT: actually update HabitCompletion here
             Task { @MainActor in
-                // TODO: Wire back into HabitCompletionEngine when we confirm the exact API.
-                // For now, just log so we can verify this is being called.
-                print("🔄 syncTodayFromReminders: fetched \(fetched.count) reminders for today.")
+                HabitCompletionEngine.upsertCompletionsForToday(
+                    in: viewContext,
+                    reminders: fetched
+                )
             }
         }
     }

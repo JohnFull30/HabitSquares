@@ -1,11 +1,3 @@
-//
-//  AddHabitView.swift
-//  Habit Tracker
-//
-//  Created by John Fuller on 12/1/25.
-//
-
-import Foundation
 import SwiftUI
 import CoreData
 
@@ -14,7 +6,7 @@ struct AddHabitView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var name: String = ""
-    @State private var trackingMode: String = "manual"
+    @State private var trackingMode: String = "manual"   // "manual" / "allReminders"
 
     var body: some View {
         NavigationStack {
@@ -33,16 +25,19 @@ struct AddHabitView: View {
             }
             .navigationTitle("Add Habit")
             .toolbar {
+                // Cancel
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
+
+                // Save
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         saveHabit()
                     }
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
@@ -50,17 +45,18 @@ struct AddHabitView: View {
 
     private func saveHabit() {
         let habit = Habit(context: viewContext)
-        habit.name = name
-        habit.colorHex = "#22C55E"           // temporary default green
+        habit.id = UUID()
+        habit.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        habit.colorHex = "#22C55E" // temporary default green
 
-        // Core Data Habit doesn't have this field yet, so skip for now.
-        // habit.trackingMode = trackingMode  // "manual" or "allReminders"
+        print("✅ AddHabitView.saveHabit: creating habit id=\(habit.objectID) name='\(habit.name ?? "<nil>")'")
 
         do {
             try viewContext.save()
-            dismiss()
+            print("✅ AddHabitView.saveHabit: saved habit")
+            dismiss()   // <- this is what closes the Add Habit sheet
         } catch {
-            print("❌ Failed to save habit: \(error)")
+            print("❌ AddHabitView.saveHabit: failed to save habit: \(error)")
         }
     }
 }
