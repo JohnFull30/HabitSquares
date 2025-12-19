@@ -107,6 +107,7 @@ struct HabitSeeder {
         let habit = Habit(context: context)
         habit.id = UUID()
         habit.name = name
+        habit.createdAt = Date()
         
         print("✏️ HabitSeeder.fetchOrCreateHabit: creating NEW habit id=\(habit.objectID) name='\(name)'")
         

@@ -81,6 +81,12 @@ struct HabitHeatmapView: View {
             // Title + subtitle
             Text(habit.name ?? "Habit")
                 .font(.headline)
+                .lineLimit(2)                       // at most 2 lines
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false,
+                           vertical: true)          // allow vertical growth, not horizontal
+                .frame(maxWidth: .infinity,
+                       alignment: .leading)
 
             Text("Last \(dayCount) days")
                 .font(.caption)
@@ -121,6 +127,8 @@ struct HabitHeatmapView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(Color(UIColor.systemBackground))
                 .shadow(color: Color.black.opacity(0.03), radius: 4, x: 0, y: 2)
+                .foregroundColor(.primary)       // <- add this line
+
         )
     }
 }

@@ -48,6 +48,8 @@ struct AddHabitView: View {
         habit.id = UUID()
         habit.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         habit.colorHex = "#22C55E" // temporary default green
+        habit.createdAt = Date()     // ✅ NEW: timestamp
+
 
         print("✅ AddHabitView.saveHabit: creating habit id=\(habit.objectID) name='\(habit.name ?? "<nil>")'")
 
