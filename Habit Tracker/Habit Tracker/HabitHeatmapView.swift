@@ -126,8 +126,6 @@ struct HabitHeatmapView: View {
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(Color(UIColor.systemBackground))
-                .shadow(color: Color.black.opacity(0.03), radius: 4, x: 0, y: 2)
-                .foregroundColor(.primary)       // <- add this line
 
         )
     }

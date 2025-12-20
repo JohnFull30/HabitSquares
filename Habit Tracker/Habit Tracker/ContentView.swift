@@ -50,8 +50,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ZStack(alignment: .bottom) {
-                Color(.systemBackground).ignoresSafeArea()
-                // MAIN LAYOUT: header + content
+                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()                // MAIN LAYOUT: header + content
                 VStack(alignment: .leading, spacing: 16) {
 
                     // HEADER – as high as possible
@@ -62,6 +61,7 @@ struct ContentView: View {
                         Spacer()
                         // (No + button up here anymore)
                     }
+                    .hsCard()
                     .padding(.horizontal)
                     .padding(.top, 4)
 
@@ -193,7 +193,6 @@ struct ContentView: View {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
             )
-            .shadow(color: .black.opacity(0.35), radius: 18, x: 0, y: 10)
             .padding(.vertical, 4)
     }
 
