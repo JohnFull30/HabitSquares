@@ -50,7 +50,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ZStack(alignment: .bottom) {
-
+                Color(.systemBackground).ignoresSafeArea()
                 // MAIN LAYOUT: header + content
                 VStack(alignment: .leading, spacing: 16) {
 
@@ -90,9 +90,9 @@ struct ContentView: View {
                                             // Tap card → navigate to details (no NavigationLink layout side-effects)
                                             path.append(habit.objectID)
                                         } label: {
-                                            habitCardStyle(
+                                            habitCardStyle {
                                                 HabitHeatmapView(habit: habit)
-                                            )
+                                            }
                                         }
                                         .buttonStyle(HabitCardButtonStyle())
                                         .contentShape(Rectangle())
@@ -182,24 +182,18 @@ struct ContentView: View {
 
     // MARK: - Card styling helper
 
-    private func habitCardStyle<Content: View>(_ content: Content) -> some View {
-        content
+    private func habitCardStyle<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
             .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(Color(.systemBackground))
+                    .fill(.thinMaterial)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color(.systemGray4).opacity(0.35), lineWidth: 0.5)
+                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
             )
-            .shadow(
-                color: Color.black.opacity(0.06),
-                radius: 12,
-                x: 0,
-                y: 6
-            )
+            .shadow(color: .black.opacity(0.35), radius: 18, x: 0, y: 10)
             .padding(.vertical, 4)
     }
 

@@ -1,11 +1,3 @@
-//
-//  AddRemindersSheet.swift
-//  Habit Tracker
-//
-//  Created by John Fuller on 12/20/25.
-//
-
-
 import SwiftUI
 import CoreData
 import EventKit
@@ -21,11 +13,30 @@ struct AddRemindersSheet: View {
     @State private var selectedIDs = Set<String>()
     @State private var requiredByID: [String: Bool] = [:]
 
+    // NEW: list filter (nil = All Lists)
+    @State private var selectedListName: String? = nil
+
+    // NEW: build list names from fetched reminders
+    private var availableListNames: [String] {
+        let names = Set(client.reminders.map { $0.calendar.title })
+        return names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
     private var filteredReminders: [EKReminder] {
-        let base = client.reminders
+        var items = client.reminders
+
+        // Filter by list
+        if let selectedListName {
+            items = items.filter { $0.calendar.title == selectedListName }
+        }
+
+        // Filter by search
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return base }
-        return base.filter { ($0.title).localizedCaseInsensitiveContains(q) }
+        if !q.isEmpty {
+            items = items.filter { $0.title.localizedCaseInsensitiveContains(q) }
+        }
+
+        return items
     }
 
     var body: some View {
@@ -45,8 +56,23 @@ struct AddRemindersSheet: View {
                     )
                 } else {
                     List {
-                        ForEach(filteredReminders, id: \.calendarItemIdentifier) { r in
-                            row(reminder: r)
+                        // NEW: list filter section
+                        Section {
+                            Picker("List", selection: Binding(
+                                get: { selectedListName },
+                                set: { selectedListName = $0 }
+                            )) {
+                                Text("All Lists").tag(String?.none)
+                                ForEach(availableListNames, id: \.self) { name in
+                                    Text(name).tag(String?.some(name))
+                                }
+                            }
+                        }
+
+                        Section {
+                            ForEach(filteredReminders, id: \.calendarItemIdentifier) { r in
+                                row(reminder: r)
+                            }
                         }
                     }
                     .searchable(text: $searchText)
@@ -76,6 +102,7 @@ struct AddRemindersSheet: View {
     private func row(reminder: EKReminder) -> some View {
         let id = reminder.calendarItemIdentifier
         let isSelected = selectedIDs.contains(id)
+        let required = requiredByID[id] ?? true
 
         Button {
             toggleSelection(id: id)
@@ -88,8 +115,14 @@ struct AddRemindersSheet: View {
                     Text(reminder.title)
                         .lineLimit(1)
 
+                    // NEW: show list name (helps when “All Lists” is selected)
+                    Text(reminder.calendar.title)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
                     if isSelected {
-                        Text((requiredByID[id] ?? true) ? "Required" : "Optional")
+                        Text(required ? "Required" : "Optional")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -98,8 +131,8 @@ struct AddRemindersSheet: View {
                 Spacer()
 
                 if isSelected {
-                    Button((requiredByID[id] ?? true) ? "Required" : "Optional") {
-                        requiredByID[id] = !((requiredByID[id] ?? true))
+                    Button(required ? "Required" : "Optional") {
+                        requiredByID[id] = !required
                     }
                     .buttonStyle(.bordered)
                 }
@@ -133,7 +166,7 @@ struct AddRemindersSheet: View {
         let existing = (habit.reminderLinks as? Set<HabitReminderLink>) ?? []
         let existingIDs = Set(existing.compactMap { $0.ekReminderID })
 
-        // 1) Add new links for any selected reminders not already linked
+        // Add new links for any selected reminders not already linked
         for r in client.reminders {
             let id = r.calendarItemIdentifier
             guard selectedIDs.contains(id) else { continue }
@@ -147,20 +180,19 @@ struct AddRemindersSheet: View {
             link.isRequired = requiredByID[id] ?? true
         }
 
-        // 2) Update existing links' required flag/title if they are still selected
+        // Update existing links' required flag/title if still selected
         for link in existing {
             guard let id = link.ekReminderID else { continue }
             guard selectedIDs.contains(id) else { continue }
+
             link.isRequired = requiredByID[id] ?? link.isRequired
 
-            // Optional: keep title in sync if reminder title changed
             if let latest = client.reminders.first(where: { $0.calendarItemIdentifier == id }) {
                 link.title = latest.title
             }
         }
 
-        // 3) (Optional behavior) If user unselects a previously-linked reminder, remove that link
-        // Comment this out if you prefer "unselect doesn't delete"
+        // If user unselects a previously-linked reminder, remove that link
         for link in existing {
             guard let id = link.ekReminderID else { continue }
             if !selectedIDs.contains(id) {

@@ -8,24 +8,33 @@ struct HabitCompletionEngine {
     // MARK: - Public API
 
     /// Recompute / upsert HabitCompletion rows for *today* based on the
-    /// current Reminders state.
+    /// reminders that were fetched (your ReminderService decides which reminders are included).
     static func upsertCompletionsForToday(
         in context: NSManagedObjectContext,
         reminders: [EKReminder]
     ) {
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
+        let startOfToday = calendar.startOfDay(for: Date())
+        let endOfToday = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
 
-        // 1. Build a Set of reminder identifiers that are completed *today*
-        let doneTodayIDs: Set<String> = Set(
-            reminders.compactMap { reminder in
-                guard reminder.isCompleted else { return nil }
-                guard let completionDate = reminder.completionDate,
-                      calendar.isDate(completionDate, inSameDayAs: today) else {
-                    return nil
-                }
-                return reminder.calendarItemIdentifier
-            }
+        // IDs that exist in the reminders array we were given (i.e. “eligible” for today logic)
+        let todayReminderIDs = Set(reminders.map { $0.calendarItemIdentifier })
+
+        // ✅ Only count as "done today" if:
+        // - reminder.isCompleted == true
+        // - AND completionDate is within today’s window
+        //
+        // This prevents old completions (yesterday, etc.) from auto-counting today.
+        func isCompletedToday(_ reminder: EKReminder) -> Bool {
+            guard reminder.isCompleted else { return false }
+            guard let completedAt = reminder.completionDate else { return false }
+            return (startOfToday..<endOfToday).contains(completedAt)
+        }
+
+        let doneTodayIDs = Set(
+            reminders
+                .filter(isCompletedToday)
+                .map { $0.calendarItemIdentifier }
         )
 
         print("✅ HabitCompletionEngine: doneTodayIDs = \(doneTodayIDs)")
@@ -44,7 +53,7 @@ struct HabitCompletionEngine {
 
         // 3. Fetch any existing completions for *today* and index them by habit
         let completionRequest: NSFetchRequest<HabitCompletion> = HabitCompletion.fetchRequest()
-        completionRequest.predicate = NSPredicate(format: "date == %@", today as NSDate)
+        completionRequest.predicate = NSPredicate(format: "date == %@", startOfToday as NSDate)
         completionRequest.sortDescriptors = []
 
         let existingCompletions: [HabitCompletion]
@@ -79,24 +88,33 @@ struct HabitCompletionEngine {
             }
 
             if links.isEmpty {
-                // No linked reminders ⇒ no required reminders, not complete
+                // No linked reminders ⇒ not complete
                 let completion = completionByHabit[habit] ?? HabitCompletion(context: context)
                 completion.habit = habit
-                completion.date = today
+                completion.date = startOfToday
                 completion.isComplete = false
 
                 print("📊 HabitCompletionEngine: habit '\(habitName)' has no links → not complete.")
                 continue
             }
 
-            // 4b. Decide which links are "required"
-            // For now, treat every link as required.
-            let requiredLinks = links
-            let requiredCount = requiredLinks.count
+            // Prefer ekReminderID if present; fall back to reminderIdentifier (covers older data)
+            func linkID(_ link: HabitReminderLink) -> String? {
+                if let id = link.ekReminderID, !id.isEmpty { return id }
+                if let id = link.reminderIdentifier, !id.isEmpty { return id }
+                return nil
+            }
 
-            // 4c. Count how many required reminders are done today
-            let completedRequired = requiredLinks.filter { link in
-                guard let id = link.reminderIdentifier else { return false }
+            // Only count REQUIRED links that actually exist in the reminders we consider “today eligible”
+            let requiredTodayLinks = links.filter { link in
+                guard link.isRequired, let id = linkID(link) else { return false }
+                return todayReminderIDs.contains(id)
+            }
+
+            let requiredCount = requiredTodayLinks.count
+
+            let completedRequired = requiredTodayLinks.filter { link in
+                guard let id = linkID(link) else { return false }
                 return doneTodayIDs.contains(id)
             }.count
 
@@ -105,7 +123,7 @@ struct HabitCompletionEngine {
             // 4d. Upsert the HabitCompletion row for (habit, today)
             let completion = completionByHabit[habit] ?? HabitCompletion(context: context)
             completion.habit = habit
-            completion.date = today
+            completion.date = startOfToday
             completion.isComplete = isComplete
 
             print("""
@@ -129,29 +147,29 @@ struct HabitCompletionEngine {
 
     /// Log the HabitCompletion rows for today so you can verify what the
     /// heatmap *should* be showing.
-static func debugSummaries(in context: NSManagedObjectContext) {
-    let calendar = Calendar.current
-    let today = calendar.startOfDay(for: Date())
+    static func debugSummaries(in context: NSManagedObjectContext) {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
 
-    let request: NSFetchRequest<HabitCompletion> = HabitCompletion.fetchRequest()
-    request.predicate = NSPredicate(format: "date == %@", today as NSDate)
-    request.sortDescriptors = []
+        let request: NSFetchRequest<HabitCompletion> = HabitCompletion.fetchRequest()
+        request.predicate = NSPredicate(format: "date == %@", today as NSDate)
+        request.sortDescriptors = []
 
-    do {
-        let results = try context.fetch(request)
+        do {
+            let results = try context.fetch(request)
 
-        print("====== Habit completion summaries (debug) ======")
-        for completion in results {
-            let name = completion.habit?.name ?? "<unnamed>"
-            let date = completion.date ?? today
+            print("====== Habit completion summaries (debug) ======")
+            for completion in results {
+                let name = completion.habit?.name ?? "<unnamed>"
+                let date = completion.date ?? today
 
-            print("Habit: \(name)")
-            print(" date: \(date)")
-            print(" isComplete: \(completion.isComplete)")
+                print("Habit: \(name)")
+                print(" date: \(date)")
+                print(" isComplete: \(completion.isComplete)")
+            }
+            print("====== end summaries ======")
+        } catch {
+            print("⚠️ HabitCompletionEngine: failed to fetch summaries: \(error)")
         }
-        print("====== end summaries ======")
-    } catch {
-        print("⚠️ HabitCompletionEngine: failed to fetch summaries: \(error)")
     }
-}
 }

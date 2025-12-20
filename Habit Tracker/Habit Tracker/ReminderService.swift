@@ -22,7 +22,6 @@ final class ReminderService {
         case .notDetermined:
             print("Reminders: status is notDetermined, requesting access...")
 
-            // Shared handler so we don't repeat the DispatchQueue.main code
             let handleResult: (Bool, Error?) -> Void = { granted, error in
                 DispatchQueue.main.async {
                     print("Reminders: request finished. granted=\(granted), error=\(String(describing: error))")
@@ -31,12 +30,10 @@ final class ReminderService {
             }
 
             if #available(iOS 17.0, *) {
-                // New API for iOS 17+
                 store.requestFullAccessToReminders { granted, error in
                     handleResult(granted, error)
                 }
             } else {
-                // Old API for iOS 16 and earlier
                 store.requestAccess(to: .reminder) { granted, error in
                     handleResult(granted, error)
                 }
@@ -55,7 +52,6 @@ final class ReminderService {
     // MARK: - Fetching
 
     /// Fetch all **incomplete** reminders.
-    /// If access is missing or denied, we just return an empty array.
     func fetchOutstandingReminders(completion: @escaping ([EKReminder]) -> Void) {
         let status = EKEventStore.authorizationStatus(for: .reminder)
 
@@ -70,20 +66,7 @@ final class ReminderService {
 
             store.fetchReminders(matching: predicate) { reminders in
                 let safe = reminders ?? []
-
                 print("Reminders: fetched \(safe.count) item(s).")
-
-                // 🧪 DEBUG: log each reminder's ID so we can link it to a habit
-                for reminder in safe {
-                    let title = reminder.title ?? "{no title}"
-                    print("""
-                    Reminder debug:
-                      title = \(title)
-                      id = \(reminder.calendarItemIdentifier)
-                      completed = \(reminder.isCompleted)
-                    """)
-                }
-
                 completion(safe)
             }
 
@@ -101,11 +84,13 @@ final class ReminderService {
         }
     }
 
-    /// Fetch **today's** reminders (optionally including completed ones).
-    /// This is what we use for the debug summaries so that completed items
-    /// still show up in HabitCompletionEngine.
-    func fetchTodayReminders(includeCompleted: Bool = true,
-                             completion: @escaping ([EKReminder]) -> Void) {
+    /// Fetch reminders that are **due today**.
+    /// If `includeCompleted=true`, you get both completed + incomplete due-today items.
+    /// If `includeCompleted=false`, you get only incomplete due-today items.
+    func fetchTodayReminders(
+        includeCompleted: Bool = true,
+        completion: @escaping ([EKReminder]) -> Void
+    ) {
         let status = EKEventStore.authorizationStatus(for: .reminder)
 
         switch status {
@@ -116,24 +101,31 @@ final class ReminderService {
             store.fetchReminders(matching: predicate) { reminders in
                 let all = reminders ?? []
 
-                let startOfDay = Calendar.current.startOfDay(for: Date())
-                let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
+                let today = Date()
 
-                let todayReminders = all.filter { reminder in
-                    guard let date = reminder.dueDateComponents?.date else { return false }
-                    return (startOfDay ... endOfDay).contains(date)
-                }
+                let todayReminders = all.filter { r in
+                    guard let due = r.dueDateComponents?.date else { return false }
+                    guard Calendar.current.isDate(due, inSameDayAs: today) else { return false }
 
-                let finalReminders: [EKReminder]
-                if includeCompleted {
-                    finalReminders = todayReminders
-                } else {
-                    finalReminders = todayReminders.filter { !$0.isCompleted }
+                    // includeCompleted means: include completed reminders that are due today
+                    return includeCompleted ? true : !r.isCompleted
                 }
 
                 DispatchQueue.main.async {
-                    print("Reminders (today): fetched \(finalReminders.count) item(s). includeCompleted=\(includeCompleted)")
-                    completion(finalReminders)
+                    print("Reminders (due today): fetched \(todayReminders.count) item(s). includeCompleted=\(includeCompleted)")
+
+                    for r in todayReminders {
+                        print("""
+                        DueToday debug:
+                          title=\(r.title ?? "<no title>")
+                          due=\(String(describing: r.dueDateComponents?.date))
+                          isCompleted=\(r.isCompleted)
+                          completionDate=\(String(describing: r.completionDate))
+                          id=\(r.calendarItemIdentifier)
+                        """)
+                    }
+
+                    completion(todayReminders)
                 }
             }
 
@@ -150,4 +142,4 @@ final class ReminderService {
             completion([])
         }
     }
-}
+} 
