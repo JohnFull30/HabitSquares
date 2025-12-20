@@ -14,6 +14,9 @@ struct ContentView: View {
     )
     private var habitResults: FetchedResults<Habit>
 
+    // Programmatic navigation (keeps LazyVGrid spacing stable)
+    @State private var path = NavigationPath()
+
     // Which sheet is currently active
     @State private var activeSheet: ActiveSheet?
 
@@ -45,7 +48,7 @@ struct ContentView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack(alignment: .bottom) {
 
                 // MAIN LAYOUT: header + content
@@ -84,15 +87,22 @@ struct ContentView: View {
                                 ) {
                                     ForEach(habitsByNewest, id: \.objectID) { habit in
                                         Button {
-                                            // Tap card → open reminders for this habit
-                                            activeSheet = .reminders(habit)
+                                            // Tap card → navigate to details (no NavigationLink layout side-effects)
+                                            path.append(habit.objectID)
                                         } label: {
                                             habitCardStyle(
                                                 HabitHeatmapView(habit: habit)
                                             )
                                         }
                                         .buttonStyle(HabitCardButtonStyle())
+                                        .contentShape(Rectangle())
                                         .contextMenu {
+                                            Button {
+                                                activeSheet = .reminders(habit)
+                                            } label: {
+                                                Label("Link Reminders", systemImage: "link")
+                                            }
+
                                             Button(role: .destructive) {
                                                 deleteHabit(habit)
                                             } label: {
@@ -132,6 +142,16 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 32)
             }
+
+            // Navigate to HabitDetailView using Core Data objectID
+            .navigationDestination(for: NSManagedObjectID.self) { objectID in
+                if let habit = viewContext.object(with: objectID) as? Habit {
+                    HabitDetailView(habit: habit)
+                } else {
+                    Text("Habit not found")
+                }
+            }
+
             // SHEETS
             .sheet(item: $activeSheet) { sheet in
                 switch sheet {
@@ -144,6 +164,7 @@ struct ContentView: View {
                         .environment(\.managedObjectContext, viewContext)
                 }
             }
+
             // SYNC + LOGGING
             .onAppear {
                 logCoreDataHabits("onAppear")
