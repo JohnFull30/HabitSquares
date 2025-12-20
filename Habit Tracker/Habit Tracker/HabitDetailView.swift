@@ -1,11 +1,3 @@
-//
-//  HabitDetailView.swift
-//  Habit Tracker
-//
-//  Created by John Fuller on 12/20/25.
-//
-
-
 import SwiftUI
 import CoreData
 
@@ -27,18 +19,8 @@ struct HabitDetailView: View {
                     Text("No reminders linked yet.")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(links, id: \.id) { link in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(link.title ?? "(Untitled)")
-                                    .lineLimit(1)
-
-                                Text(link.isRequired ? "Required" : "Optional")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
+                    ForEach(links, id: \.objectID) { link in
+                        linkRow(link)
                     }
                     .onDelete(perform: deleteLinks)
                 }
@@ -51,20 +33,61 @@ struct HabitDetailView: View {
             }
         }
         .navigationTitle(habit.name ?? "Habit")
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingAddReminders) {
             AddRemindersSheet(habit: habit)
                 .environment(\.managedObjectContext, context)
         }
     }
 
-    private func deleteLinks(at offsets: IndexSet) {
-        for index in offsets {
-            context.delete(links[index])
+    // MARK: - Row
+
+    @ViewBuilder
+    private func linkRow(_ link: HabitReminderLink) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayTitle(for: link))
+                    .lineLimit(1)
+
+                Text(link.isRequired ? "Required" : "Optional")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { link.isRequired },
+                set: { newValue in
+                    link.isRequired = newValue
+                    saveContext()
+                }
+            ))
+            .labelsHidden()
         }
+    }
+
+    private func displayTitle(for link: HabitReminderLink) -> String {
+        let t = (link.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !t.isEmpty { return t }
+        return "Reminder"
+    }
+
+    // MARK: - Delete
+
+    private func deleteLinks(at offsets: IndexSet) {
+        let currentLinks = links
+        for index in offsets {
+            context.delete(currentLinks[index])
+        }
+        saveContext()
+    }
+
+    private func saveContext() {
         do {
             try context.save()
         } catch {
-            print("Failed deleting links: \(error)")
+            print("❌ HabitDetailView: failed saving context: \(error)")
         }
     }
 }
