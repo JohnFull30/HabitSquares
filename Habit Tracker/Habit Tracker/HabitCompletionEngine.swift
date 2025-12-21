@@ -2,174 +2,285 @@ import Foundation
 import CoreData
 import EventKit
 
-/// Calculates daily HabitCompletion rows from linked Reminders.
-struct HabitCompletionEngine {
+// MARK: - HabitCompletionEngine
+enum HabitCompletionEngine {
 
-    // MARK: - Public API
-
-    /// Recompute / upsert HabitCompletion rows for *today* based on the
-    /// reminders that were fetched (your ReminderService decides which reminders are included).
+    @MainActor
     static func upsertCompletionsForToday(
         in context: NSManagedObjectContext,
         reminders: [EKReminder]
     ) {
-        let calendar = Calendar.current
-        let startOfToday = calendar.startOfDay(for: Date())
-        let endOfToday = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
 
-        // IDs that exist in the reminders array we were given (i.e. “eligible” for today logic)
-        let todayReminderIDs = Set(reminders.map { $0.calendarItemIdentifier })
+        // Build an index of "completed today" reminders for matching
+        let completedIndex = CompletedReminderIndex(reminders: reminders)
 
-        // ✅ Only count as "done today" if:
-        // - reminder.isCompleted == true
-        // - AND completionDate is within today’s window
-        //
-        // This prevents old completions (yesterday, etc.) from auto-counting today.
-        func isCompletedToday(_ reminder: EKReminder) -> Bool {
-            guard reminder.isCompleted else { return false }
-            guard let completedAt = reminder.completionDate else { return false }
-            return (startOfToday..<endOfToday).contains(completedAt)
-        }
+        print("✅ HabitCompletionEngine: completed identifiers = \(Array(completedIndex.ids))")
+        print("✅ HabitCompletionEngine: completed externalIds   = \(Array(completedIndex.externalIds))")
+        print("✅ HabitCompletionEngine: completed titleKeys     = \(Array(completedIndex.titleKeys).prefix(8)) ...")
 
-        let doneTodayIDs = Set(
-            reminders
-                .filter(isCompletedToday)
-                .map { $0.calendarItemIdentifier }
-        )
+        let habits: [Habit] = fetchAllHabits(in: context)
+        let allLinks: [NSManagedObject] = fetchAllLinks(in: context)
 
-        print("✅ HabitCompletionEngine: doneTodayIDs = \(doneTodayIDs)")
-
-        // 2. Fetch all habits
-        let habitRequest: NSFetchRequest<Habit> = Habit.fetchRequest()
-        habitRequest.sortDescriptors = []
-
-        let habits: [Habit]
-        do {
-            habits = try context.fetch(habitRequest)
-        } catch {
-            print("⚠️ HabitCompletionEngine: failed to fetch habits: \(error)")
-            return
-        }
-
-        // 3. Fetch any existing completions for *today* and index them by habit
-        let completionRequest: NSFetchRequest<HabitCompletion> = HabitCompletion.fetchRequest()
-        completionRequest.predicate = NSPredicate(format: "date == %@", startOfToday as NSDate)
-        completionRequest.sortDescriptors = []
-
-        let existingCompletions: [HabitCompletion]
-        do {
-            existingCompletions = try context.fetch(completionRequest)
-        } catch {
-            print("⚠️ HabitCompletionEngine: failed to fetch existing completions: \(error)")
-            return
-        }
-
-        var completionByHabit: [Habit: HabitCompletion] = [:]
-        for completion in existingCompletions {
-            if let habit = completion.habit {
-                completionByHabit[habit] = completion
-            }
-        }
-
-        // 4. For each habit, count required reminders and how many are done today
         for habit in habits {
             let habitName = habit.name ?? "<unnamed>"
 
-            // 4a. Fetch links for this habit
-            let linkRequest: NSFetchRequest<HabitReminderLink> = HabitReminderLink.fetchRequest()
-            linkRequest.predicate = NSPredicate(format: "habit == %@", habit)
-
-            let links: [HabitReminderLink]
-            do {
-                links = try context.fetch(linkRequest)
-            } catch {
-                print("⚠️ HabitCompletionEngine: failed to fetch links for habit \(habitName): \(error)")
-                continue
+            let linksForHabit = allLinks.filter { link in
+                guard let linkedHabitID = link.linkedHabitObjectID() else { return false }
+                return linkedHabitID == habit.objectID
             }
 
-            if links.isEmpty {
-                // No linked reminders ⇒ not complete
-                let completion = completionByHabit[habit] ?? HabitCompletion(context: context)
-                completion.habit = habit
-                completion.date = startOfToday
-                completion.isComplete = false
-
-                print("📊 HabitCompletionEngine: habit '\(habitName)' has no links → not complete.")
-                continue
+            let requiredLinks = linksForHabit.filter {
+                $0.boolValue(forAnyKey: ["isRequired", "required", "is_required"]) == true
             }
 
-            // Prefer ekReminderID if present; fall back to reminderIdentifier (covers older data)
-            func linkID(_ link: HabitReminderLink) -> String? {
-                if let id = link.ekReminderID, !id.isEmpty { return id }
-                if let id = link.reminderIdentifier, !id.isEmpty { return id }
-                return nil
+            let requiredCount = requiredLinks.count
+
+            let completedRequiredCount = requiredLinks.reduce(into: 0) { partial, link in
+                let linkReminderID = link.anyStringValue(forAnyKey: [
+                    "reminderID", "reminderId",
+                    "reminderIdentifier", "ekReminderID",
+                    "calendarItemIdentifier", "externalIdentifier"
+                ])
+
+                let linkTitle = link.anyStringValue(forAnyKey: [
+                    "title", "reminderTitle", "reminderName", "name"
+                ])
+
+                let linkCalendarTitle = link.anyStringValue(forAnyKey: [
+                    "calendarTitle", "listTitle", "reminderListTitle"
+                ])
+
+                let matched = completedIndex.matches(
+                    reminderID: linkReminderID,
+                    title: linkTitle,
+                    calendarTitle: linkCalendarTitle
+                )
+
+                // Helpful log so we can see WHY it isn't matching
+                print("🔗 required link → id=\(linkReminderID ?? "nil") title=\(linkTitle ?? "nil") cal=\(linkCalendarTitle ?? "nil") matchedDone=\(matched)")
+
+                if matched { partial += 1 }
             }
 
-            // Only count REQUIRED links that actually exist in the reminders we consider “today eligible”
-            let requiredTodayLinks = links.filter { link in
-                guard link.isRequired, let id = linkID(link) else { return false }
-                return todayReminderIDs.contains(id)
-            }
-
-            let requiredCount = requiredTodayLinks.count
-
-            let completedRequired = requiredTodayLinks.filter { link in
-                guard let id = linkID(link) else { return false }
-                return doneTodayIDs.contains(id)
-            }.count
-
-            let isComplete = requiredCount > 0 && completedRequired == requiredCount
-
-            // 4d. Upsert the HabitCompletion row for (habit, today)
-            let completion = completionByHabit[habit] ?? HabitCompletion(context: context)
-            completion.habit = habit
-            completion.date = startOfToday
-            completion.isComplete = isComplete
+            // If required == 0, treat as NOT complete (prevents auto-green)
+            let isComplete = (requiredCount > 0) && (completedRequiredCount == requiredCount)
 
             print("""
             📊 HabitCompletionEngine: habit '\(habitName)'
               required: \(requiredCount)
-              done today: \(completedRequired)
+              done today: \(completedRequiredCount)
               isComplete: \(isComplete)
             """)
+
+            upsertCompletionRow(
+                in: context,
+                habit: habit,
+                date: today,
+                totalRequired: requiredCount,
+                completedRequired: completedRequiredCount,
+                isComplete: isComplete,
+                source: "reminders"
+            )
         }
 
-        // 5. Save
         do {
-            try context.save()
+            if context.hasChanges {
+                try context.save()
+            }
             print("✅ HabitCompletionEngine: saved completions for today.")
         } catch {
-            print("⚠️ HabitCompletionEngine: failed to save completions: \(error)")
+            print("❌ HabitCompletionEngine: failed saving completions: \(error)")
+        }
+    }
+}
+
+// MARK: - CompletedReminderIndex (match by id first, then title+calendar)
+private struct CompletedReminderIndex {
+    let ids: Set<String>
+    let externalIds: Set<String>
+    let titleKeys: Set<String>
+    let titleOnly: Set<String>
+
+    init(reminders: [EKReminder]) {
+        var ids = Set<String>()
+        var external = Set<String>()
+        var titleKeys = Set<String>()
+        var titleOnly = Set<String>()
+
+        for r in reminders where r.isCompleted {
+            ids.insert(Self.norm(r.calendarItemIdentifier))
+            if let ext = r.calendarItemExternalIdentifier {
+                external.insert(Self.norm(ext))
+            }
+
+            let t = (r.title).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty {
+                titleOnly.insert(Self.norm(t))
+                let calTitle = r.calendar.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !calTitle.isEmpty {
+                    titleKeys.insert(Self.makeTitleKey(title: t, calendarTitle: calTitle))
+                }
+            }
+        }
+
+        self.ids = ids
+        self.externalIds = external
+        self.titleKeys = titleKeys
+        self.titleOnly = titleOnly
+    }
+
+    func matches(reminderID: String?, title: String?, calendarTitle: String?) -> Bool {
+        // 1) Strong match: identifier/externalIdentifier
+        if let reminderID {
+            let nid = Self.norm(reminderID)
+            if ids.contains(nid) || externalIds.contains(nid) {
+                return true
+            }
+        }
+
+        // 2) Fallback (repeating reminders): title + calendar title
+        if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let calendarTitle, !calendarTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if titleKeys.contains(Self.makeTitleKey(title: title, calendarTitle: calendarTitle)) {
+                    return true
+                }
+            }
+            // 3) Last resort: title only (works but can collide if duplicates)
+            if titleOnly.contains(Self.norm(title)) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private static func makeTitleKey(title: String, calendarTitle: String) -> String {
+        "\(norm(title))|\(norm(calendarTitle))"
+    }
+
+    private static func norm(_ s: String) -> String {
+        s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+}
+
+// MARK: - Core Data helpers
+private extension HabitCompletionEngine {
+
+    @MainActor
+    static func fetchAllHabits(in context: NSManagedObjectContext) -> [Habit] {
+        let req = NSFetchRequest<Habit>(entityName: "Habit")
+        req.returnsObjectsAsFaults = false
+        do { return try context.fetch(req) }
+        catch {
+            print("❌ HabitCompletionEngine: failed to fetch habits: \(error)")
+            return []
         }
     }
 
-    // MARK: - Debug helper
+    @MainActor
+    static func fetchAllLinks(in context: NSManagedObjectContext) -> [NSManagedObject] {
+        let req = NSFetchRequest<NSManagedObject>(entityName: "HabitReminderLink")
+        req.returnsObjectsAsFaults = false
+        do { return try context.fetch(req) }
+        catch {
+            print("❌ HabitCompletionEngine: failed to fetch HabitReminderLink: \(error)")
+            return []
+        }
+    }
 
-    /// Log the HabitCompletion rows for today so you can verify what the
-    /// heatmap *should* be showing.
-    static func debugSummaries(in context: NSManagedObjectContext) {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
+    @MainActor
+    static func upsertCompletionRow(
+        in context: NSManagedObjectContext,
+        habit: Habit,
+        date: Date,
+        totalRequired: Int,
+        completedRequired: Int,
+        isComplete: Bool,
+        source: String
+    ) {
+        guard
+            let model = context.persistentStoreCoordinator?.managedObjectModel,
+            let completionEntity = model.entitiesByName["HabitCompletion"]
+        else {
+            print("❌ HabitCompletionEngine: missing entity 'HabitCompletion' in model. Check your Core Data entity name.")
+            return
+        }
 
-        let request: NSFetchRequest<HabitCompletion> = HabitCompletion.fetchRequest()
-        request.predicate = NSPredicate(format: "date == %@", today as NSDate)
-        request.sortDescriptors = []
+        let req = NSFetchRequest<NSManagedObject>(entityName: "HabitCompletion")
+        req.fetchLimit = 1
+
+        let habitKey = "habit"
+        let dateKey = "date"
+
+        if completionEntity.relationshipsByName[habitKey] != nil,
+           completionEntity.attributesByName[dateKey] != nil {
+            req.predicate = NSPredicate(format: "%K == %@ AND %K == %@", habitKey, habit, dateKey, date as NSDate)
+        }
 
         do {
-            let results = try context.fetch(request)
+            let existing = try context.fetch(req).first
+            let completion = existing ?? NSManagedObject(entity: completionEntity, insertInto: context)
 
-            print("====== Habit completion summaries (debug) ======")
-            for completion in results {
-                let name = completion.habit?.name ?? "<unnamed>"
-                let date = completion.date ?? today
-
-                print("Habit: \(name)")
-                print(" date: \(date)")
-                print(" isComplete: \(completion.isComplete)")
+            if completionEntity.relationshipsByName[habitKey] != nil {
+                completion.setValue(habit, forKey: habitKey)
             }
-            print("====== end summaries ======")
+
+            completion.setIfExists(date, forKey: "date")
+            completion.setIfExists(Int64(totalRequired), forKey: "totalRequired")
+            completion.setIfExists(Int64(completedRequired), forKey: "completedRequired")
+            completion.setIfExists(isComplete, forKey: "isComplete")
+            completion.setIfExists(source, forKey: "source")
+
         } catch {
-            print("⚠️ HabitCompletionEngine: failed to fetch summaries: \(error)")
+            print("❌ HabitCompletionEngine: failed upserting HabitCompletion: \(error)")
         }
+    }
+}
+
+// MARK: - NSManagedObject safe access helpers
+private extension NSManagedObject {
+
+    func hasAttribute(_ key: String) -> Bool {
+        entity.attributesByName[key] != nil
+    }
+
+    func hasRelationship(_ key: String) -> Bool {
+        entity.relationshipsByName[key] != nil
+    }
+
+    // Reads String OR UUID-ish values and returns a String.
+    func anyStringValue(forAnyKey keys: [String]) -> String? {
+        for k in keys where hasAttribute(k) {
+            let v = value(forKey: k)
+            if let s = v as? String { return s }
+            if let u = v as? UUID { return u.uuidString }
+            if let n = v as? NSUUID { return n.uuidString }
+        }
+        return nil
+    }
+
+    func boolValue(forAnyKey keys: [String]) -> Bool? {
+        for k in keys where hasAttribute(k) {
+            if let v = value(forKey: k) as? Bool { return v }
+            if let v = value(forKey: k) as? NSNumber { return v.boolValue }
+        }
+        return nil
+    }
+
+    func linkedHabitObjectID() -> NSManagedObjectID? {
+        let candidateKeys = ["habit", "parentHabit", "ownerHabit"]
+        for k in candidateKeys where hasRelationship(k) {
+            if let h = value(forKey: k) as? NSManagedObject {
+                return h.objectID
+            }
+        }
+        return nil
+    }
+
+    func setIfExists(_ value: Any?, forKey key: String) {
+        guard hasAttribute(key) else { return }
+        setValue(value, forKey: key)
     }
 }

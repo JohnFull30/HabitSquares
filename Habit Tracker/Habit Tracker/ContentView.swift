@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import EventKit
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -50,7 +51,9 @@ struct ContentView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ZStack(alignment: .bottom) {
-                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()                // MAIN LAYOUT: header + content
+                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+
+                // MAIN LAYOUT: header + content
                 VStack(alignment: .leading, spacing: 16) {
 
                     // HEADER – as high as possible
@@ -174,6 +177,10 @@ struct ContentView: View {
                 if newPhase == .active {
                     syncTodayFromReminders()
                 }
+            }
+            // ✅ NEW: Re-sync when EventKit says Reminders changed
+            .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
+                syncTodayFromReminders()
             }
         }
         // Hide default nav bar so our custom header can sit as high as possible
