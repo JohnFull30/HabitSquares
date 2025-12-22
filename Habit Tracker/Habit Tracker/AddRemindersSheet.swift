@@ -22,6 +22,11 @@ struct AddRemindersSheet: View {
     // Suggested vs All
     @State private var showSuggestedOnly = true
 
+    // MARK: - Stamp format
+    // habitsquares://reminder-link/<uuid>
+    private let stampScheme = "habitsquares"
+    private let stampHost = "reminder-link"
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
@@ -50,8 +55,10 @@ struct AddRemindersSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        saveLinks()
-                        dismiss()
+                        Task {
+                            await saveLinksAsync()
+                            dismiss()
+                        }
                     }
                     .disabled(selectedKeys.isEmpty)
                 }
@@ -103,7 +110,6 @@ struct AddRemindersSheet: View {
             HStack(spacing: 12) {
                 Image(systemName: isAlreadyLinked ? "link" : (isSelected ? "checkmark.circle.fill" : "circle"))
                     .symbolRenderingMode(.hierarchical)
-                    // Use only Hierarchical styles to avoid tint/secondary mismatches
                     .foregroundStyle(isAlreadyLinked ? .secondary : (isSelected ? .primary : .secondary))
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -208,19 +214,16 @@ struct AddRemindersSheet: View {
         alreadyLinkedKeys = Set(links.flatMap { link in
             Array(linkStoredKeys(link))
         })
-
-        // Also pre-fill requiredKeys for existing links if you want; optional
     }
 
-    // MARK: - Save
+    // MARK: - Save (stamping + Core Data)
 
-    private func saveLinks() {
+    private func saveLinksAsync() async {
         guard let linkEntityName = guessLinkEntityName(in: viewContext) else {
             print("✗ AddRemindersSheet: could not guess link entity name")
             return
         }
 
-        // Find relationship from Link -> Habit (ownerHabit/parentHabit/etc)
         guard let linkToHabitKey = findRelationshipKey(entityName: linkEntityName,
                                                       destinationEntityName: "Habit",
                                                       in: viewContext) else {
@@ -228,26 +231,53 @@ struct AddRemindersSheet: View {
             return
         }
 
-        // Build map: stableKey -> EKReminder
+        // Build map: selectionKey -> EKReminder
         var byKey: [String: EKReminder] = [:]
         for r in allReminders {
             byKey[stableIdentifierToStore(for: r)] = r
         }
 
-        for key in selectedKeys {
-            guard !alreadyLinkedKeys.contains(key) else { continue }
-            guard let r = byKey[key] else { continue }
+        // 1) Ensure each selected reminder has a stamped stable UUID (and save back to EventKit)
+        // We batch EventKit saves for speed/consistency.
+        var stampedBySelectionKey: [String: String] = [:]
+
+        do {
+            for selectionKey in selectedKeys {
+                guard !alreadyLinkedKeys.contains(selectionKey) else { continue }
+                guard let r = byKey[selectionKey] else { continue }
+
+                let stableUUID = ensureStampedUUID(on: r)
+                stampedBySelectionKey[selectionKey] = stableUUID
+
+                // Save reminder (commit later)
+                try store.save(r, commit: false)
+            }
+
+            // Commit EventKit changes once
+            try store.commit()
+        } catch {
+            // If EventKit save fails, we should not write Core Data links with missing stamps.
+            print("✗ AddRemindersSheet: EventKit save/commit failed: \(error)")
+            return
+        }
+
+        // 2) Write Core Data links using the stamped UUID as the primary identity
+        for selectionKey in selectedKeys {
+            guard !alreadyLinkedKeys.contains(selectionKey) else { continue }
+            guard let r = byKey[selectionKey] else { continue }
+            guard let stableUUID = stampedBySelectionKey[selectionKey] else { continue }
 
             let link = NSEntityDescription.insertNewObject(forEntityName: linkEntityName, into: viewContext)
 
             // relationship: link -> habit
             link.setIfExistsObject(habit, forKey: linkToHabitKey)
 
-            // store identifier(s)
-            // Prefer external identifier if available
-            let stableID = stableIdentifierToStore(for: r)
-            link.setIfExistsString(stableID, forKey: "reminderIdentifier")
-            link.setIfExistsString(stableID, forKey: "reminderId")
+            // Store our stable ID (THIS is what matching should use going forward)
+            link.setIfExistsString(stableUUID, forKey: "reminderIdentifier")
+            link.setIfExistsString(stableUUID, forKey: "reminderId")
+            link.setIfExistsString(stableUUID, forKey: "reminderID")
+
+            // Keep Apple IDs as debug/backstop only (optional but useful)
             link.setIfExistsString(r.calendarItemIdentifier, forKey: "calendarItemIdentifier")
             if let ext = r.calendarItemExternalIdentifier {
                 link.setIfExistsString(ext, forKey: "calendarItemExternalIdentifier")
@@ -258,20 +288,47 @@ struct AddRemindersSheet: View {
             link.setIfExistsString(r.calendar.title, forKey: "calendarTitle")
             link.setIfExistsDate(Date(), forKey: "createdAt")
 
-            // required flag (support both "isRequired" and "required")
-            let isReq = requiredKeys.contains(key)
+            // required flag
+            let isReq = requiredKeys.contains(selectionKey)
             link.setIfExistsBool(isReq, forKey: "isRequired")
             link.setIfExistsBool(isReq, forKey: "required")
+
+            print("✓ AddRemindersSheet: linked '\(r.title)' with stableUUID=\(stableUUID)")
         }
 
         do {
             try viewContext.save()
-            // Immediately resync
             HabitCompletionEngine.syncTodayFromReminders(in: viewContext, includeCompleted: true)
             print("✓ AddRemindersSheet: saved links + triggered sync")
         } catch {
-            print("✗ AddRemindersSheet: save failed \(error)")
+            print("✗ AddRemindersSheet: Core Data save failed \(error)")
         }
+    }
+
+    // MARK: - Stamping helpers
+
+    private func stampedUUID(from reminder: EKReminder) -> String? {
+        guard let url = reminder.url else { return nil }
+        guard url.scheme?.lowercased() == stampScheme else { return nil }
+        guard url.host?.lowercased() == stampHost else { return nil }
+
+        let raw = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return raw.isEmpty ? nil : raw
+    }
+
+    /// Ensures the reminder has a HabitSquares stable UUID in `reminder.url`.
+    /// Returns the stable UUID we should store in Core Data.
+    private func ensureStampedUUID(on reminder: EKReminder) -> String {
+        if let existing = stampedUUID(from: reminder) {
+            return existing
+        }
+
+        let uuid = UUID().uuidString
+        // habitsquares://reminder-link/<uuid>
+        if let url = URL(string: "\(stampScheme)://\(stampHost)/\(uuid)") {
+            reminder.url = url
+        }
+        return uuid
     }
 
     // MARK: - Link fetch (NO Habit.links)
@@ -302,9 +359,13 @@ struct AddRemindersSheet: View {
         return keys
     }
 
-    // MARK: - Stable identifier
+    // MARK: - Stable identifier (for selection UI only)
 
+    /// Selection key for the list UI.
+    /// Prefer stamped UUID if present (so the UI stays consistent after stamping),
+    /// otherwise fall back to Apple identifiers.
     private func stableIdentifierToStore(for r: EKReminder) -> String {
+        if let stamped = stampedUUID(from: r) { return stamped }
         if let ext = r.calendarItemExternalIdentifier, !ext.isEmpty { return ext }
         return r.calendarItemIdentifier
     }
