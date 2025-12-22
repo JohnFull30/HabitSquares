@@ -25,6 +25,7 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="isRequired" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="reminderIdentifier" optional="YES" attributeType="String"/>
+        <attribute name="reminderKey" optional="YES" attributeType="String"/>
         <attribute name="title" optional="YES" attributeType="String"/>
         <relationship name="habit" maxCount="1" deletionRule="Nullify" destinationEntity="Habit" inverseName="reminderLinks" inverseEntity="Habit"/>
     </entity>

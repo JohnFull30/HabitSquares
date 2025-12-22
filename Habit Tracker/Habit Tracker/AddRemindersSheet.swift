@@ -1,65 +1,49 @@
 import SwiftUI
-import CoreData
 import EventKit
+import CoreData
 
 struct AddRemindersSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
 
-    let habit: Habit
+    let habit: NSManagedObject
 
-    // EventKit
-    private let store = EKEventStore()
-
-    // UI state
-    @State private var isLoading = true
+    @State private var store = EKEventStore()
     @State private var authDenied = false
 
     @State private var allReminders: [EKReminder] = []
-    @State private var allCalendars: [EKCalendar] = []
-    @State private var selectedCalendar: EKCalendar? = nil
+    @State private var query: String = ""
 
-    @State private var query = ""
-    @State private var mode: PickerMode = .suggested
+    // Keys for selection
+    @State private var selectedKeys: Set<String> = []
+    @State private var alreadyLinkedKeys: Set<String> = []
+    @State private var requiredKeys: Set<String> = []
 
-    // Core Data state
-    @State private var alreadyLinkedKeys = Set<String>()   // stable “key” we store for comparisons
-    @State private var selectedKeys = Set<String>()        // what user is selecting right now
-
-    enum PickerMode: String, CaseIterable, Identifiable {
-        case suggested = "Suggested"
-        case all = "All"
-        var id: String { rawValue }
-    }
+    // Suggested vs All
+    @State private var showSuggestedOnly = true
 
     var body: some View {
         NavigationStack {
-            Group {
-                if authDenied {
-                    ContentUnavailableView(
-                        "Reminders Access Needed",
-                        systemImage: "exclamationmark.triangle",
-                        description: Text("Enable Reminders access in Settings to link reminders to a habit.")
-                    )
-                    .padding()
-                } else if isLoading {
-                    ProgressView("Loading reminders…")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    VStack(spacing: 12) {
-                        headerControls
+            VStack(spacing: 12) {
+                Picker("", selection: $showSuggestedOnly) {
+                    Text("Suggested").tag(true)
+                    Text("All").tag(false)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
 
-                        List {
-                            ForEach(filteredReminders, id: \.calendarItemIdentifier) { r in
-                                reminderRow(r)
-                            }
-                        }
-                        .listStyle(.insetGrouped)
+                TextField("Search reminders", text: $query)
+                    .textFieldStyle(.roundedBorder)
+                    .padding(.horizontal)
+
+                List {
+                    ForEach(filteredReminders, id: \.calendarItemIdentifier) { r in
+                        reminderRow(r)
                     }
                 }
+                .listStyle(.plain)
             }
             .navigationTitle("Add Reminders")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -69,151 +53,62 @@ struct AddRemindersSheet: View {
                         saveLinks()
                         dismiss()
                     }
-                    .disabled(selectedKeys.isEmpty || selectedKeys.subtracting(alreadyLinkedKeys).isEmpty)
+                    .disabled(selectedKeys.isEmpty)
                 }
             }
-            .task {
-                await loadEverything()
+            .onAppear {
+                Task { await load() }
             }
         }
     }
 
-    // MARK: - Header controls
-
-    private var headerControls: some View {
-        VStack(spacing: 10) {
-            // List filter
-            HStack {
-                Text("List")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Menu {
-                    Button {
-                        selectedCalendar = nil
-                    } label: {
-                        Label("All Lists", systemImage: selectedCalendar == nil ? "checkmark" : "")
-                    }
-
-                    Divider()
-
-                    ForEach(allCalendars, id: \.calendarIdentifier) { cal in
-                        Button {
-                            selectedCalendar = cal
-                        } label: {
-                            HStack {
-                                Text(cal.title)
-                                Spacer()
-                                if selectedCalendar?.calendarIdentifier == cal.calendarIdentifier {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(selectedCalendar?.title ?? "All Lists")
-                        Image(systemName: "chevron.down")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            // Suggested / All toggle
-            Picker("", selection: $mode) {
-                ForEach(PickerMode.allCases) { m in
-                    Text(m.rawValue).tag(m)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            // Search
-            TextField("Search reminders", text: $query)
-                .textFieldStyle(.roundedBorder)
-        }
-        .padding(.horizontal)
-        .padding(.top, 8)
-    }
-
-    // MARK: - Filtered reminders
+    // MARK: - Derived
 
     private var filteredReminders: [EKReminder] {
-        var base = allReminders
+        let base: [EKReminder] = {
+            if showSuggestedOnly {
+                // Suggested = due today or within next 7 days OR completed today.
+                let now = Date()
+                let start = Calendar.current.startOfDay(for: now)
+                let end = Calendar.current.date(byAdding: .day, value: 7, to: start)!
 
-        // calendar filter
-        if let selectedCalendar {
-            base = base.filter { $0.calendar.calendarIdentifier == selectedCalendar.calendarIdentifier }
-        }
-        
-        // Hide completed reminders by default (unless already linked/selected)
-        base = base.filter { r in
-            let key = reminderStableKey(r)
-            return (!r.isCompleted) || alreadyLinkedKeys.contains(key) || selectedKeys.contains(key)
-        }
-
-        // Suggested mode:
-        // - due today OR completed today OR recurring
-        // - PLUS always include anything already linked/selected so it doesn’t “disappear”
-        if mode == .suggested {
-            base = base.filter { r in
-                let key = reminderStableKey(r)
-                return isSuggested(r) || alreadyLinkedKeys.contains(key) || selectedKeys.contains(key)
-            }
-        }
-
-        // search
-        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if !q.isEmpty {
-            base = base.filter { $0.title.lowercased().contains(q) }
-        }
-
-        // sort: incomplete first, then title
-        return base.sorted {
-            if $0.isCompleted != $1.isCompleted { return $0.isCompleted == false }
-            return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
-        }
-    }
-
-    private func isSuggested(_ r: EKReminder) -> Bool {
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        let tomorrow = cal.date(byAdding: .day, value: 1, to: today)!
-
-        func isInToday(_ d: Date) -> Bool { d >= today && d < tomorrow }
-
-        if let due = r.dueDateComponents?.date, isInToday(due) { return true }
-        if r.isCompleted, let cd = r.completionDate, isInToday(cd) { return true }
-        if let rules = r.recurrenceRules, !rules.isEmpty { return true }
-
-        return false
-    }
-
-    // MARK: - Row
-
-    @ViewBuilder
-    private func reminderRow(_ r: EKReminder) -> some View {
-        let key = reminderStableKey(r)
-        let isChecked = selectedKeys.contains(key) || alreadyLinkedKeys.contains(key)
-        let isLocked = alreadyLinkedKeys.contains(key)
-
-        Button {
-            guard !isLocked else { return }
-            if selectedKeys.contains(key) {
-                selectedKeys.remove(key)
+                return allReminders.filter { r in
+                    if let due = r.dueDateComponents?.date, due >= start && due < end { return true }
+                    if r.isCompleted, let cd = r.completionDate, cd >= start && cd < end { return true }
+                    return false
+                }
             } else {
-                selectedKeys.insert(key)
+                return allReminders
             }
+        }()
+
+        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return base
+        }
+        let q = query.lowercased()
+        return base.filter { $0.title.lowercased().contains(q) || $0.calendar.title.lowercased().contains(q) }
+    }
+
+    // MARK: - UI Row
+
+    private func reminderRow(_ r: EKReminder) -> some View {
+        let key = stableIdentifierToStore(for: r)
+        let isAlreadyLinked = alreadyLinkedKeys.contains(key)
+        let isSelected = selectedKeys.contains(key)
+
+        return Button {
+            guard !isAlreadyLinked else { return }
+            toggleSelected(key: key)
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isChecked ? Color.accentColor : Color.secondary)
+                Image(systemName: isAlreadyLinked ? "link" : (isSelected ? "checkmark.circle.fill" : "circle"))
+                    .symbolRenderingMode(.hierarchical)
+                    // Use only Hierarchical styles to avoid tint/secondary mismatches
+                    .foregroundStyle(isAlreadyLinked ? .secondary : (isSelected ? .primary : .secondary))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(r.title)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(isAlreadyLinked ? .secondary : .primary)
 
                     Text(r.calendar.title)
                         .font(.caption)
@@ -222,56 +117,63 @@ struct AddRemindersSheet: View {
 
                 Spacer()
 
-                Text(isLocked ? "Linked" : "Required")
-                    .font(.caption2.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(.thinMaterial, in: Capsule())
-                    .foregroundStyle(.secondary)
+                if isSelected && !isAlreadyLinked {
+                    Toggle("Required", isOn: Binding(
+                        get: { requiredKeys.contains(key) },
+                        set: { newValue in
+                            if newValue { requiredKeys.insert(key) }
+                            else { requiredKeys.remove(key) }
+                        }
+                    ))
+                    .labelsHidden()
+                }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(isAlreadyLinked)
+    }
+
+    private func toggleSelected(key: String) {
+        if selectedKeys.contains(key) {
+            selectedKeys.remove(key)
+            requiredKeys.remove(key)
+        } else {
+            selectedKeys.insert(key)
+            // Default: required
+            requiredKeys.insert(key)
+        }
     }
 
     // MARK: - Load
 
-    @MainActor
-    private func loadEverything() async {
-        isLoading = true
-        authDenied = false
-
-        await requestAccessIfNeeded()
-        guard !authDenied else {
-            isLoading = false
+    private func load() async {
+        let ok = await requestAccessIfNeeded()
+        guard ok else {
+            authDenied = true
             return
         }
 
-        allCalendars = store.calendars(for: .reminder)
-        alreadyLinkedKeys = fetchAlreadyLinkedKeys(for: habit)
-        allReminders = await fetchAllReminders()
-
-        isLoading = false
+        let reminders = await fetchAllReminders()
+        await MainActor.run {
+            allReminders = reminders
+            hydrateAlreadyLinked()
+        }
     }
 
-    @MainActor
-    private func requestAccessIfNeeded() async {
+    private func requestAccessIfNeeded() async -> Bool {
         let status = EKEventStore.authorizationStatus(for: .reminder)
-
         switch status {
         case .authorized, .fullAccess:
-            authDenied = false
-
+            return true
         case .notDetermined:
-            do {
-                try await store.requestFullAccessToReminders()
-                authDenied = false
-            } catch {
-                authDenied = true
+            return await withCheckedContinuation { cont in
+                store.requestFullAccessToReminders { granted, _ in
+                    cont.resume(returning: granted)
+                }
             }
-
         default:
-            authDenied = true
+            return false
         }
     }
 
@@ -279,118 +181,201 @@ struct AddRemindersSheet: View {
         let calendars = store.calendars(for: .reminder)
         let predicate = store.predicateForReminders(in: calendars)
 
-        return await withCheckedContinuation { continuation in
+        return await withCheckedContinuation { cont in
             store.fetchReminders(matching: predicate) { reminders in
-                continuation.resume(returning: reminders ?? [])
+                cont.resume(returning: reminders ?? [])
             }
         }
     }
 
-    // MARK: - Save links
+    // MARK: - Existing links
 
-    @MainActor
+    private func hydrateAlreadyLinked() {
+        guard let linkEntityName = guessLinkEntityName(in: viewContext),
+              let linkToHabitKey = findRelationshipKey(entityName: linkEntityName,
+                                                      destinationEntityName: "Habit",
+                                                      in: viewContext)
+        else {
+            alreadyLinkedKeys = []
+            return
+        }
+
+        let links = fetchLinks(for: habit,
+                               linkEntityName: linkEntityName,
+                               linkToHabitKey: linkToHabitKey,
+                               in: viewContext)
+
+        alreadyLinkedKeys = Set(links.flatMap { link in
+            Array(linkStoredKeys(link))
+        })
+
+        // Also pre-fill requiredKeys for existing links if you want; optional
+    }
+
+    // MARK: - Save
+
     private func saveLinks() {
-        let newKeys = selectedKeys.subtracting(alreadyLinkedKeys)
-        guard !newKeys.isEmpty else { return }
+        guard let linkEntityName = guessLinkEntityName(in: viewContext) else {
+            print("✗ AddRemindersSheet: could not guess link entity name")
+            return
+        }
 
-        let byKey: [String: EKReminder] = Dictionary(
-            uniqueKeysWithValues: allReminders.map { (reminderStableKey($0), $0) }
-        )
+        // Find relationship from Link -> Habit (ownerHabit/parentHabit/etc)
+        guard let linkToHabitKey = findRelationshipKey(entityName: linkEntityName,
+                                                      destinationEntityName: "Habit",
+                                                      in: viewContext) else {
+            print("✗ AddRemindersSheet: could not find relationship \(linkEntityName) -> Habit")
+            return
+        }
 
-        for key in newKeys {
+        // Build map: stableKey -> EKReminder
+        var byKey: [String: EKReminder] = [:]
+        for r in allReminders {
+            byKey[stableIdentifierToStore(for: r)] = r
+        }
+
+        for key in selectedKeys {
+            guard !alreadyLinkedKeys.contains(key) else { continue }
             guard let r = byKey[key] else { continue }
 
-            let link = NSEntityDescription.insertNewObject(
-                forEntityName: "HabitReminderLink",
-                into: viewContext
-            )
+            let link = NSEntityDescription.insertNewObject(forEntityName: linkEntityName, into: viewContext)
 
-            // relationship to habit (try common key names)
-            if link.entity.relationshipsByName["habit"] != nil {
-                link.setValue(habit, forKey: "habit")
-            } else if link.entity.relationshipsByName["parentHabit"] != nil {
-                link.setValue(habit, forKey: "parentHabit")
-            } else if link.entity.relationshipsByName["ownerHabit"] != nil {
-                link.setValue(habit, forKey: "ownerHabit")
+            // relationship: link -> habit
+            link.setIfExistsObject(habit, forKey: linkToHabitKey)
+
+            // store identifier(s)
+            // Prefer external identifier if available
+            let stableID = stableIdentifierToStore(for: r)
+            link.setIfExistsString(stableID, forKey: "reminderIdentifier")
+            link.setIfExistsString(stableID, forKey: "reminderId")
+            link.setIfExistsString(r.calendarItemIdentifier, forKey: "calendarItemIdentifier")
+            if let ext = r.calendarItemExternalIdentifier {
+                link.setIfExistsString(ext, forKey: "calendarItemExternalIdentifier")
             }
 
-            let stableID = stableIdentifierToStore(for: r)
+            // metadata
+            link.setIfExistsString(r.title, forKey: "title")
+            link.setIfExistsString(r.calendar.title, forKey: "calendarTitle")
+            link.setIfExistsDate(Date(), forKey: "createdAt")
 
-            // store identifiers defensively (only if the attribute exists)
-            link.setIfExists(stableID, forKey: "id")
-            link.setIfExists(stableID, forKey: "reminderID")
-            link.setIfExists(stableID, forKey: "reminderId")
-
-            link.setIfExists(r.title, forKey: "title")
-            link.setIfExists(r.calendar.title, forKey: "calendarTitle")
-
-            // default: required
-            link.setIfExists(true, forKey: "isRequired")
-            link.setIfExists(true, forKey: "required")
-
-            link.setIfExists(Date(), forKey: "createdAt")
+            // required flag (support both "isRequired" and "required")
+            let isReq = requiredKeys.contains(key)
+            link.setIfExistsBool(isReq, forKey: "isRequired")
+            link.setIfExistsBool(isReq, forKey: "required")
         }
 
         do {
             try viewContext.save()
+            // Immediately resync
+            HabitCompletionEngine.syncTodayFromReminders(in: viewContext, includeCompleted: true)
+            print("✓ AddRemindersSheet: saved links + triggered sync")
         } catch {
-            print("❌ AddRemindersSheet: failed saving links: \(error)")
+            print("✗ AddRemindersSheet: save failed \(error)")
         }
     }
 
-    // MARK: - Already linked keys (CRASH-PROOF)
+    // MARK: - Link fetch (NO Habit.links)
 
-    private func fetchAlreadyLinkedKeys(for habit: Habit) -> Set<String> {
-        let req = NSFetchRequest<NSManagedObject>(entityName: "HabitReminderLink")
+    private func fetchLinks(for habit: NSManagedObject,
+                            linkEntityName: String,
+                            linkToHabitKey: String,
+                            in context: NSManagedObjectContext) -> [NSManagedObject] {
+        let req = NSFetchRequest<NSManagedObject>(entityName: linkEntityName)
+        req.predicate = NSPredicate(format: "%K == %@", linkToHabitKey, habit)
+        return (try? context.fetch(req)) ?? []
+    }
 
-        do {
-            let links = try viewContext.fetch(req)
-
-            // keep only links that belong to THIS habit, without guessing relationship names
-            let linksForHabit: [NSManagedObject] = links.filter { link in
-                if let h = link.valueIfExists(forKey: "habit") as? Habit, h.objectID == habit.objectID { return true }
-                if let h = link.valueIfExists(forKey: "parentHabit") as? Habit, h.objectID == habit.objectID { return true }
-                if let h = link.valueIfExists(forKey: "ownerHabit") as? Habit, h.objectID == habit.objectID { return true }
-                return false
+    private func linkStoredKeys(_ link: NSManagedObject) -> Set<String> {
+        var keys = Set<String>()
+        let candidates = [
+            "reminderIdentifier",
+            "reminderId",
+            "reminderID",
+            "calendarItemIdentifier",
+            "calendarItemExternalIdentifier"
+        ]
+        for c in candidates {
+            if let s = link.valueIfExists(forKey: c) as? String, !s.isEmpty {
+                keys.insert(s)
             }
-
-            // read whatever id fields actually exist in your model (NO crashes)
-            let ids: [String] = linksForHabit.compactMap { link in
-                if let s = link.valueIfExists(forKey: "id") as? String { return s }
-                if let s = link.valueIfExists(forKey: "reminderID") as? String { return s }
-                if let s = link.valueIfExists(forKey: "reminderId") as? String { return s }
-                return nil
-            }
-
-            return Set(ids.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
-        } catch {
-            print("❌ AddRemindersSheet: failed fetching existing links: \(error)")
-            return []
         }
+        return keys
     }
 
-    // MARK: - Reminder stable key
-
-    private func reminderStableKey(_ r: EKReminder) -> String {
-        let raw = stableIdentifierToStore(for: r)
-        return raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    }
+    // MARK: - Stable identifier
 
     private func stableIdentifierToStore(for r: EKReminder) -> String {
         if let ext = r.calendarItemExternalIdentifier, !ext.isEmpty { return ext }
         return r.calendarItemIdentifier
     }
+
+    // MARK: - Model introspection
+
+    private func findRelationshipKey(entityName: String,
+                                     destinationEntityName: String,
+                                     in context: NSManagedObjectContext) -> String? {
+        guard let model = context.persistentStoreCoordinator?.managedObjectModel else { return nil }
+        guard let entity = model.entitiesByName[entityName] else { return nil }
+
+        for (name, rel) in entity.relationshipsByName {
+            if rel.destinationEntity?.name == destinationEntityName {
+                return name
+            }
+        }
+        return nil
+    }
+
+    private func guessLinkEntityName(in context: NSManagedObjectContext) -> String? {
+        guard let model = context.persistentStoreCoordinator?.managedObjectModel else { return nil }
+
+        let common = ["ReminderLink", "ReminderLinkEntity", "HabitReminderLink", "HabitLink", "ReminderLinkModel"]
+        for name in common {
+            if model.entitiesByName[name] != nil { return name }
+        }
+
+        for (name, entity) in model.entitiesByName {
+            let attrs = Set(entity.attributesByName.keys)
+            let looksLikeLink =
+                attrs.contains("reminderIdentifier") ||
+                attrs.contains("reminderId") ||
+                attrs.contains("calendarItemIdentifier") ||
+                attrs.contains("calendarItemExternalIdentifier")
+
+            let hasHabitRel = entity.relationshipsByName.values.contains { $0.destinationEntity?.name == "Habit" }
+
+            if looksLikeLink && hasHabitRel { return name }
+        }
+
+        return nil
+    }
 }
 
-// MARK: - NSManagedObject safe helpers
+// MARK: - NSManagedObject safe KVC
+
 private extension NSManagedObject {
-    func setIfExists(_ value: Any?, forKey key: String) {
+    func setIfExistsString(_ value: String, forKey key: String) {
         guard entity.attributesByName[key] != nil else { return }
         setValue(value, forKey: key)
     }
 
+    func setIfExistsBool(_ value: Bool, forKey key: String) {
+        guard entity.attributesByName[key] != nil else { return }
+        setValue(value, forKey: key)
+    }
+
+    func setIfExistsDate(_ value: Date, forKey key: String) {
+        guard entity.attributesByName[key] != nil else { return }
+        setValue(value, forKey: key)
+    }
+
+    func setIfExistsObject(_ value: Any?, forKey key: String) {
+        guard entity.relationshipsByName[key] != nil else { return }
+        setValue(value, forKey: key)
+    }
+
     func valueIfExists(forKey key: String) -> Any? {
-        guard entity.attributesByName[key] != nil || entity.relationshipsByName[key] != nil else { return nil }
-        return value(forKey: key)
+        if entity.attributesByName[key] != nil { return value(forKey: key) }
+        if entity.relationshipsByName[key] != nil { return value(forKey: key) }
+        return nil
     }
 }

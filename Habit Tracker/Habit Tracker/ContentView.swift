@@ -226,10 +226,7 @@ struct ContentView: View {
             Task { @MainActor in
                 print("✅ syncTodayFromReminders: fetched \(fetched.count) reminders for today.")
 
-                HabitCompletionEngine.upsertCompletionsForToday(
-                    in: viewContext,
-                    reminders: fetched
-                )
+                HabitCompletionEngine.syncTodayFromReminders(in: viewContext)
             }
         }
     }
