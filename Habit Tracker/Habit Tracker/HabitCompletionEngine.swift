@@ -1,6 +1,7 @@
 import Foundation
 import CoreData
 import EventKit
+import WidgetKit
 
 enum HabitCompletionEngine {
 
@@ -142,6 +143,8 @@ enum HabitCompletionEngine {
 
         do {
             try context.save()
+            
+            WidgetDataWriter.writeSnapshot(in: context);       WidgetCenter.shared.reloadTimelines(ofKind: "HabitSquaresWidget")
             print("✓ HabitCompletionEngine: saved completions for today.")
         } catch {
             print("✗ HabitCompletionEngine: failed saving completions: \(error)")
