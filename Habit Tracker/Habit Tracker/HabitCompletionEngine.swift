@@ -21,7 +21,35 @@ enum HabitCompletionEngine {
             }
         }
     }
+    // MARK: Public API (History)
 
+    static func syncLast365DaysFromReminders(in context: NSManagedObjectContext) {
+        Task {
+            let store = EKEventStore()
+            let ok = await requestRemindersAccessIfNeeded(store: store)
+            guard ok else {
+                print("✗ HabitCompletionEngine: no reminders access")
+                return
+            }
+
+            let cal = Calendar.current
+            let today = cal.startOfDay(for: Date())
+            let start = cal.date(byAdding: .day, value: -364, to: today) ?? today
+            let endExclusive = cal.date(byAdding: .day, value: 1, to: today) ?? today
+
+            // Fetch completed reminders once for the whole window and bucket by completion day
+            let doneKeysByDay = await fetchDoneKeysByCompletionDay(store: store,
+                                                                  start: start,
+                                                                  endExclusive: endExclusive)
+
+            await MainActor.run {
+                upsertCompletionsForWindow(in: context,
+                                           startDay: start,
+                                           endDayInclusive: today,
+                                           doneKeysByDay: doneKeysByDay)
+            }
+        }
+    }
     // MARK: Core compute / upsert
 
     @MainActor
@@ -286,6 +314,137 @@ enum HabitCompletionEngine {
         }
 
         return nil
+    }
+    // MARK: - Window upsert
+
+    @MainActor
+    private static func upsertCompletionsForWindow(in context: NSManagedObjectContext,
+                                                   startDay: Date,
+                                                   endDayInclusive: Date,
+                                                   doneKeysByDay: [Date: Set<String>]) {
+
+        let cal = Calendar.current
+        let habits = fetchHabits(in: context)
+
+        guard let linkEntityName = guessLinkEntityName(in: context) else {
+            print("✗ HabitCompletionEngine: could not guess link entity name")
+            return
+        }
+        guard let linkToHabitKey = findRelationshipKey(entityName: linkEntityName,
+                                                      destinationEntityName: "Habit",
+                                                      in: context) else {
+            print("✗ HabitCompletionEngine: could not find relationship \(linkEntityName) -> Habit")
+            return
+        }
+
+        // Iterate day-by-day across the window (365 days)
+        var day = cal.startOfDay(for: startDay)
+        let last = cal.startOfDay(for: endDayInclusive)
+
+        while day <= last {
+            let nextDay = cal.date(byAdding: .day, value: 1, to: day) ?? day.addingTimeInterval(86400)
+            let doneKeysForDay = doneKeysByDay[day] ?? []
+
+            for habit in habits {
+                let requiredLinks = fetchLinks(for: habit,
+                                               linkEntityName: linkEntityName,
+                                               linkToHabitKey: linkToHabitKey,
+                                               requiredOnly: true,
+                                               in: context)
+
+                var requiredDone = 0
+                for link in requiredLinks {
+                    let linkKeys = linkStoredKeys(link).map(normalizeStoredKey)
+                    let matched = !Set(linkKeys).intersection(doneKeysForDay).isEmpty
+                    if matched { requiredDone += 1 }
+                }
+
+                let requiredTotal = requiredLinks.count
+                let isComplete = (requiredTotal > 0) && (requiredDone == requiredTotal)
+
+                // Reuse your existing upsert that takes a start/end day window
+                upsertHabitCompletion(habit: habit,
+                                      startOfDay: day,
+                                      endOfDay: nextDay,
+                                      requiredTotal: requiredTotal,
+                                      requiredDone: requiredDone,
+                                      isComplete: isComplete,
+                                      in: context)
+            }
+
+            day = nextDay
+        }
+
+        do {
+            try context.save()
+            print("✓ HabitCompletionEngine: saved completions for 365-day window.")
+        } catch {
+            print("✗ HabitCompletionEngine: failed saving 365-day window: \(error)")
+        }
+    }
+
+    // MARK: - EventKit completed bucketing
+
+    private static func fetchDoneKeysByCompletionDay(store: EKEventStore,
+                                                    start: Date,
+                                                    endExclusive: Date) async -> [Date: Set<String>] {
+        let calendars = store.calendars(for: .reminder)
+        let predicate = store.predicateForCompletedReminders(withCompletionDateStarting: start,
+                                                             ending: endExclusive,
+                                                             calendars: calendars)
+
+        let completed: [EKReminder] = await fetchRemindersAsync(store: store, predicate: predicate)
+
+        var bucket: [Date: Set<String>] = [:]
+        let cal = Calendar.current
+
+        for r in completed where r.isCompleted {
+            guard let completionDate = r.completionDate else { continue }
+            let day = cal.startOfDay(for: completionDate)
+
+            // ✅ Use your same “stamp first, else legacy keys” strategy
+            if let stamp = stampedUUID(from: r) {
+                bucket[day, default: []].insert(stamp)
+            } else {
+                if let ext = r.calendarItemExternalIdentifier, !ext.isEmpty {
+                    bucket[day, default: []].insert(ext)
+                }
+                bucket[day, default: []].insert(r.calendarItemIdentifier)
+            }
+        }
+
+        return bucket
+    }
+
+    private static func fetchRemindersAsync(store: EKEventStore,
+                                           predicate: NSPredicate) async -> [EKReminder] {
+        await withCheckedContinuation { cont in
+            store.fetchReminders(matching: predicate) { reminders in
+                cont.resume(returning: reminders ?? [])
+            }
+        }
+    }
+
+    // MARK: - Permissions (iOS 17+)
+
+    private static func requestRemindersAccessIfNeeded(store: EKEventStore) async -> Bool {
+        let status = EKEventStore.authorizationStatus(for: .reminder)
+        switch status {
+        case .authorized, .fullAccess:
+            return true
+        case .denied, .restricted:
+            return false
+        case .notDetermined:
+            if #available(iOS 17.0, *) {
+                do { return try await store.requestFullAccessToReminders() }
+                catch { return false }
+            } else {
+                do { return try await store.requestAccess(to: .reminder) }
+                catch { return false }
+            }
+        @unknown default:
+            return false
+        }
     }
 }
 

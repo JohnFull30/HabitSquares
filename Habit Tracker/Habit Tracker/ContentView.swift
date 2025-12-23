@@ -18,8 +18,11 @@ struct ContentView: View {
     // Programmatic navigation (keeps LazyVGrid spacing stable)
     @State private var path = NavigationPath()
 
+    
     // Which sheet is currently active
     @State private var activeSheet: ActiveSheet?
+    
+    @AppStorage("lastHistoryBackfillDay") private var lastHistoryBackfillDay: Double = 0
 
     // Newest-first array for grid rendering
     private var habitsByNewest: [Habit] {
@@ -52,22 +55,29 @@ struct ContentView: View {
         NavigationStack(path: $path) {
             ZStack(alignment: .bottom) {
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
-
+                
                 // MAIN LAYOUT: header + content
                 VStack(alignment: .leading, spacing: 16) {
-
+                    
                     // HEADER – as high as possible
                     HStack(alignment: .center) {
                         Text("habitSquares")
                             .font(.largeTitle.weight(.bold))
-
+                        
                         Spacer()
                         // (No + button up here anymore)
+                        Button {
+                            syncTodayAndHistoryIfNeeded(force: true)
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.title3.weight(.semibold))
+                        }
+                        .accessibilityLabel("Refresh")
                     }
                     .hsCard()
                     .padding(.horizontal)
                     .padding(.top, 4)
-
+                    
                     // CONTENT
                     Group {
                         if habitResults.isEmpty {
@@ -105,7 +115,7 @@ struct ContentView: View {
                                             } label: {
                                                 Label("Link Reminders", systemImage: "link")
                                             }
-
+                                            
                                             Button(role: .destructive) {
                                                 deleteHabit(habit)
                                             } label: {
@@ -122,7 +132,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-
+                
                 // FLOATING BOTTOM "ADD HABIT" BUTTON
                 Button {
                     activeSheet = .addHabit
@@ -145,7 +155,7 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 32)
             }
-
+            
             // Navigate to HabitDetailView using Core Data objectID
             .navigationDestination(for: NSManagedObjectID.self) { objectID in
                 if let habit = viewContext.object(with: objectID) as? Habit {
@@ -154,37 +164,35 @@ struct ContentView: View {
                     Text("Habit not found")
                 }
             }
-
+            
             // SHEETS
             .sheet(item: $activeSheet) { sheet in
                 switch sheet {
                 case .addHabit:
                     AddHabitView()
                         .environment(\.managedObjectContext, viewContext)
-
+                    
                 case .reminders(let habit):
                     ReminderListView(habit: habit)
                         .environment(\.managedObjectContext, viewContext)
                 }
             }
-
-            // SYNC + LOGGING
+            
+            // MARK: - SYNC + LOGGING
             .onAppear {
                 logCoreDataHabits("onAppear")
-                syncTodayFromReminders()
+                syncTodayAndHistoryIfNeeded() // will backfill once/day, then today
             }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
-                    syncTodayFromReminders()
+                    syncTodayOnly() // fast on foreground
                 }
             }
-            // ✅ NEW: Re-sync when EventKit says Reminders changed
             .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
-                syncTodayFromReminders()
-            }
+                syncTodayOnly() // fast when reminders change
+            }        // Hide default nav bar so our custom header can sit as high as possible
+            .toolbar(.hidden, for: .navigationBar)
         }
-        // Hide default nav bar so our custom header can sit as high as possible
-        .toolbar(.hidden, for: .navigationBar)
     }
 
     // MARK: - Card styling helper
@@ -221,14 +229,28 @@ struct ContentView: View {
 
     // MARK: - Sync Reminders → HabitCompletion
 
-    private func syncTodayFromReminders() {
-        ReminderService.shared.fetchTodayReminders(includeCompleted: true) { fetched in
-            Task { @MainActor in
-                print("✅ syncTodayFromReminders: fetched \(fetched.count) reminders for today.")
+    /// Lightweight: keeps "today" accurate.
+    private func syncTodayOnly() {
+        HabitCompletionEngine.syncTodayFromReminders(in: viewContext)
+    }
 
-                HabitCompletionEngine.syncTodayFromReminders(in: viewContext)
-            }
+    /// Heavy: backfills 365 days, then also ensures today is correct.
+    private func syncTodayAndHistoryIfNeeded(force: Bool = false) {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date()).timeIntervalSince1970
+        let last = cal.startOfDay(for: Date(timeIntervalSince1970: lastHistoryBackfillDay)).timeIntervalSince1970
+
+        let needsBackfill = force || (last == 0) || (last != today)
+
+        print("🔄 backfill? \(needsBackfill)  force=\(force)  last=\(lastHistoryBackfillDay)")
+
+        if needsBackfill {
+            lastHistoryBackfillDay = today
+            HabitCompletionEngine.syncLast365DaysFromReminders(in: viewContext)
         }
+
+        // Always keep today correct
+        syncTodayOnly()
     }
 
     // MARK: - Delete habits from List (kept for future use)

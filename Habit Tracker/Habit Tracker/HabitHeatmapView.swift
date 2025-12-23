@@ -10,26 +10,29 @@ struct HabitHeatmapView: View {
 
     // MARK: - Display tuning
 
-    /// How many days to show (last 30 days)
-    private let dayCount: Int = 30
+    /// How many days to show (default 30 for cards; can be 365 in detail)
+    private let dayCount: Int
+
+    /// Grid layout (columns × rows) — also configurable for widgets/detail later
+    private let columns: Int
+    private var rows: Int {
+        Int(ceil(Double(dayCount) / Double(columns)))
+    }
 
     /// Visual constants
     private let squareSize: CGFloat = 12
     private let squareCorner: CGFloat = 3
     private let squareSpacing: CGFloat = 3
 
-    /// Grid layout (columns × rows)
-    private let columns: Int = 6
-    private var rows: Int {
-        Int(ceil(Double(dayCount) / Double(columns)))
-    }
 
     // MARK: - Fetch completions
 
     @FetchRequest private var completions: FetchedResults<HabitCompletion>
 
-    init(habit: Habit) {
+    init(habit: Habit, dayCount: Int = 30, columns: Int = 6) {
         self._habit = ObservedObject(initialValue: habit)
+        self.dayCount = dayCount
+        self.columns = columns
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
