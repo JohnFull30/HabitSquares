@@ -9,18 +9,22 @@ struct AddRemindersSheet: View {
     let habit: NSManagedObject
 
     @State private var store = EKEventStore()
-    @State private var authDenied = false
 
     @State private var allReminders: [EKReminder] = []
     @State private var query: String = ""
 
     // Keys for selection
     @State private var selectedKeys: Set<String> = []
-    @State private var alreadyLinkedKeys: Set<String> = []
+    @State private var alreadyLinkedStableUUIDs: Set<String> = []
     @State private var requiredKeys: Set<String> = []
 
-    // Suggested vs All
-    @State private var showSuggestedOnly = true
+    // Filters
+    private enum FilterMode: String, CaseIterable {
+        case suggested = "Suggested"
+        case all = "All"
+    }
+    @State private var filterMode: FilterMode = .suggested
+    @State private var selectedCalendarID: String? = nil
 
     // MARK: - Stamp format
     // habitsquares://reminder-link/<uuid>
@@ -30,19 +34,10 @@ struct AddRemindersSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
-                Picker("", selection: $showSuggestedOnly) {
-                    Text("Suggested").tag(true)
-                    Text("All").tag(false)
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-
-                TextField("Search reminders", text: $query)
-                    .textFieldStyle(.roundedBorder)
-                    .padding(.horizontal)
+                glassHeader
 
                 List {
-                    ForEach(filteredReminders, id: \.calendarItemIdentifier) { r in
+                    ForEach(filteredReminders, id: \.hsRowID) { r in
                         reminderRow(r)
                     }
                 }
@@ -53,6 +48,21 @@ struct AddRemindersSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Picker("Filter", selection: $filterMode) {
+                            ForEach(FilterMode.allCases, id: \.self) { mode in
+                                Text(mode.rawValue).tag(mode)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                    .accessibilityLabel("Filter")
+                }
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         Task {
@@ -69,12 +79,49 @@ struct AddRemindersSheet: View {
         }
     }
 
+    // MARK: - Glass header
+
+    private var glassHeader: some View {
+        VStack(spacing: 10) {
+            if !availableCalendars.isEmpty {
+                Picker("List", selection: $selectedCalendarID) {
+                    Text("All Lists").tag(String?.none)
+                    ForEach(availableCalendars, id: \.calendarIdentifier) { cal in
+                        Text(cal.title).tag(Optional(cal.calendarIdentifier))
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            TextField("Search reminders", text: $query)
+                .textFieldStyle(.roundedBorder)
+        }
+        .padding(12)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(.separator.opacity(0.35))
+        )
+        .padding(.horizontal)
+        .padding(.top, 4)
+    }
+
     // MARK: - Derived
 
+    private var availableCalendars: [EKCalendar] {
+        let dict = Dictionary(grouping: allReminders, by: { $0.calendar.calendarIdentifier })
+        let calendars = dict.values.compactMap { $0.first?.calendar }
+        return calendars.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+    }
+
     private var filteredReminders: [EKReminder] {
+        // 1) Suggested vs All
         let base: [EKReminder] = {
-            if showSuggestedOnly {
-                // Suggested = due today or within next 7 days OR completed today.
+            switch filterMode {
+            case .suggested:
+                // Suggested = due today or within next 7 days OR completed today
                 let now = Date()
                 let start = Calendar.current.startOfDay(for: now)
                 let end = Calendar.current.date(byAdding: .day, value: 7, to: start)!
@@ -84,28 +131,91 @@ struct AddRemindersSheet: View {
                     if r.isCompleted, let cd = r.completionDate, cd >= start && cd < end { return true }
                     return false
                 }
-            } else {
+
+            case .all:
                 return allReminders
             }
         }()
 
-        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return base
+        // 2) Calendar/List filter
+        let calendarFiltered: [EKReminder] = {
+            guard let id = selectedCalendarID else { return base }
+            return base.filter { $0.calendar.calendarIdentifier == id }
+        }()
+
+        // 3) Search filter
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let searched: [EKReminder] = {
+            guard !trimmed.isEmpty else { return calendarFiltered }
+            let q = trimmed.lowercased()
+            return calendarFiltered.filter {
+                $0.title.lowercased().contains(q) ||
+                $0.calendar.title.lowercased().contains(q)
+            }
+        }()
+
+        // 4) UI dedupe (fix recurring “old instances” clutter)
+        return dedupeForPickerUI(searched)
+    }
+
+    /// Collapse recurring instances / duplicates so the picker is clean.
+    /// We group by our best-known stable identity (stamped UUID if present),
+    /// and then pick the “best” representative row.
+    private func dedupeForPickerUI(_ reminders: [EKReminder]) -> [EKReminder] {
+        let groups = Dictionary(grouping: reminders, by: { pickerIdentity(for: $0) })
+
+        func score(_ r: EKReminder) -> Double {
+            // Prefer items that are due soon (future) over far past.
+            // Also prefer completed today-ish over ancient completions.
+            let now = Date().timeIntervalSince1970
+            let due = r.dueDateComponents?.date?.timeIntervalSince1970 ?? -9e15
+            let comp = r.completionDate?.timeIntervalSince1970 ?? -9e15
+
+            // If due exists, use closeness to "now" (closer is better).
+            let dueScore = (due > 0) ? -abs(due - now) : -9e15
+            let compScore = (comp > 0) ? -abs(comp - now) : -9e15
+
+            // Completed items get a slight bump so they don’t disappear in suggested
+            let completedBump = r.isCompleted ? 1_000_000 : 0
+
+            return max(dueScore, compScore) + Double(completedBump)
         }
-        let q = query.lowercased()
-        return base.filter { $0.title.lowercased().contains(q) || $0.calendar.title.lowercased().contains(q) }
+
+        let chosen = groups.values.compactMap { bucket -> EKReminder? in
+            bucket.max(by: { score($0) < score($1) })
+        }
+
+        // Make it stable + nice to scan (calendar then title)
+        return chosen.sorted {
+            if $0.calendar.title != $1.calendar.title {
+                return $0.calendar.title.localizedCaseInsensitiveCompare($1.calendar.title) == .orderedAscending
+            }
+            return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+        }
+    }
+
+    private func pickerIdentity(for r: EKReminder) -> String {
+        // For the picker list, this is the “identity” of a reminder across recurring instances.
+        // Prefer our stamp if present; otherwise fall back to Apple ids.
+        if let stamped = stampedUUID(from: r) { return "stamp:\(stamped)" }
+        if let ext = r.calendarItemExternalIdentifier, !ext.isEmpty { return "ext:\(ext)" }
+        return "id:\(r.calendarItemIdentifier)"
     }
 
     // MARK: - UI Row
 
     private func reminderRow(_ r: EKReminder) -> some View {
-        let key = stableIdentifierToStore(for: r)
-        let isAlreadyLinked = alreadyLinkedKeys.contains(key)
-        let isSelected = selectedKeys.contains(key)
+        let selectionKey = stableIdentifierToStore(for: r)
+
+        // IMPORTANT: Only consider as "already linked" if the reminder itself has a stamp
+        // AND we have that same stamp saved in Core Data.
+        let stamp = stampedUUID(from: r)
+        let isAlreadyLinked = (stamp != nil) && alreadyLinkedStableUUIDs.contains(stamp!)
+        let isSelected = selectedKeys.contains(selectionKey)
 
         return Button {
             guard !isAlreadyLinked else { return }
-            toggleSelected(key: key)
+            toggleSelected(key: selectionKey)
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: isAlreadyLinked ? "link" : (isSelected ? "checkmark.circle.fill" : "circle"))
@@ -125,10 +235,10 @@ struct AddRemindersSheet: View {
 
                 if isSelected && !isAlreadyLinked {
                     Toggle("Required", isOn: Binding(
-                        get: { requiredKeys.contains(key) },
+                        get: { requiredKeys.contains(selectionKey) },
                         set: { newValue in
-                            if newValue { requiredKeys.insert(key) }
-                            else { requiredKeys.remove(key) }
+                            if newValue { requiredKeys.insert(selectionKey) }
+                            else { requiredKeys.remove(selectionKey) }
                         }
                     ))
                     .labelsHidden()
@@ -146,8 +256,7 @@ struct AddRemindersSheet: View {
             requiredKeys.remove(key)
         } else {
             selectedKeys.insert(key)
-            // Default: required
-            requiredKeys.insert(key)
+            requiredKeys.insert(key) // default required
         }
     }
 
@@ -155,15 +264,16 @@ struct AddRemindersSheet: View {
 
     private func load() async {
         let ok = await requestAccessIfNeeded()
-        guard ok else {
-            authDenied = true
-            return
-        }
+        guard ok else { return }
 
         let reminders = await fetchAllReminders()
         await MainActor.run {
             allReminders = reminders
             hydrateAlreadyLinked()
+
+            if selectedCalendarID == nil {
+                selectedCalendarID = availableCalendars.first?.calendarIdentifier
+            }
         }
     }
 
@@ -202,7 +312,7 @@ struct AddRemindersSheet: View {
                                                       destinationEntityName: "Habit",
                                                       in: viewContext)
         else {
-            alreadyLinkedKeys = []
+            alreadyLinkedStableUUIDs = []
             return
         }
 
@@ -211,9 +321,21 @@ struct AddRemindersSheet: View {
                                linkToHabitKey: linkToHabitKey,
                                in: viewContext)
 
-        alreadyLinkedKeys = Set(links.flatMap { link in
-            Array(linkStoredKeys(link))
+        // ✅ ONLY read our stable UUID fields (not legacy Apple IDs).
+        alreadyLinkedStableUUIDs = Set(links.flatMap { link in
+            Array(linkStoredStableUUIDs(link))
         })
+    }
+
+    private func linkStoredStableUUIDs(_ link: NSManagedObject) -> Set<String> {
+        var keys = Set<String>()
+        let candidates = ["reminderIdentifier", "reminderId", "reminderID"]
+        for c in candidates {
+            if let s = link.valueIfExists(forKey: c) as? String, !s.isEmpty {
+                keys.insert(s)
+            }
+        }
+        return keys
     }
 
     // MARK: - Save (stamping + Core Data)
@@ -237,69 +359,55 @@ struct AddRemindersSheet: View {
             byKey[stableIdentifierToStore(for: r)] = r
         }
 
-        // 1) Ensure each selected reminder has a stamped stable UUID (and save back to EventKit)
-        // We batch EventKit saves for speed/consistency.
+        // 1) Ensure each selected reminder has a stamped stable UUID (save back to EventKit)
         var stampedBySelectionKey: [String: String] = [:]
 
         do {
             for selectionKey in selectedKeys {
-                guard !alreadyLinkedKeys.contains(selectionKey) else { continue }
                 guard let r = byKey[selectionKey] else { continue }
 
                 let stableUUID = ensureStampedUUID(on: r)
                 stampedBySelectionKey[selectionKey] = stableUUID
 
-                // Save reminder (commit later)
                 try store.save(r, commit: false)
             }
-
-            // Commit EventKit changes once
             try store.commit()
         } catch {
-            // If EventKit save fails, we should not write Core Data links with missing stamps.
             print("✗ AddRemindersSheet: EventKit save/commit failed: \(error)")
             return
         }
 
-        // 2) Write Core Data links using the stamped UUID as the primary identity
+        // 2) Write Core Data links using stamped UUID
         for selectionKey in selectedKeys {
-            guard !alreadyLinkedKeys.contains(selectionKey) else { continue }
             guard let r = byKey[selectionKey] else { continue }
             guard let stableUUID = stampedBySelectionKey[selectionKey] else { continue }
 
             let link = NSEntityDescription.insertNewObject(forEntityName: linkEntityName, into: viewContext)
 
-            // relationship: link -> habit
             link.setIfExistsObject(habit, forKey: linkToHabitKey)
 
-            // Store our stable ID (THIS is what matching should use going forward)
             link.setIfExistsString(stableUUID, forKey: "reminderIdentifier")
             link.setIfExistsString(stableUUID, forKey: "reminderId")
             link.setIfExistsString(stableUUID, forKey: "reminderID")
 
-            // Keep Apple IDs as debug/backstop only (optional but useful)
+            // keep debug/backstop only
             link.setIfExistsString(r.calendarItemIdentifier, forKey: "calendarItemIdentifier")
             if let ext = r.calendarItemExternalIdentifier {
                 link.setIfExistsString(ext, forKey: "calendarItemExternalIdentifier")
             }
 
-            // metadata
             link.setIfExistsString(r.title, forKey: "title")
             link.setIfExistsString(r.calendar.title, forKey: "calendarTitle")
             link.setIfExistsDate(Date(), forKey: "createdAt")
 
-            // required flag
             let isReq = requiredKeys.contains(selectionKey)
             link.setIfExistsBool(isReq, forKey: "isRequired")
             link.setIfExistsBool(isReq, forKey: "required")
-
-            print("✓ AddRemindersSheet: linked '\(r.title)' with stableUUID=\(stableUUID)")
         }
 
         do {
             try viewContext.save()
             HabitCompletionEngine.syncTodayFromReminders(in: viewContext, includeCompleted: true)
-            print("✓ AddRemindersSheet: saved links + triggered sync")
         } catch {
             print("✗ AddRemindersSheet: Core Data save failed \(error)")
         }
@@ -316,15 +424,10 @@ struct AddRemindersSheet: View {
         return raw.isEmpty ? nil : raw
     }
 
-    /// Ensures the reminder has a HabitSquares stable UUID in `reminder.url`.
-    /// Returns the stable UUID we should store in Core Data.
     private func ensureStampedUUID(on reminder: EKReminder) -> String {
-        if let existing = stampedUUID(from: reminder) {
-            return existing
-        }
+        if let existing = stampedUUID(from: reminder) { return existing }
 
         let uuid = UUID().uuidString
-        // habitsquares://reminder-link/<uuid>
         if let url = URL(string: "\(stampScheme)://\(stampHost)/\(uuid)") {
             reminder.url = url
         }
@@ -342,29 +445,10 @@ struct AddRemindersSheet: View {
         return (try? context.fetch(req)) ?? []
     }
 
-    private func linkStoredKeys(_ link: NSManagedObject) -> Set<String> {
-        var keys = Set<String>()
-        let candidates = [
-            "reminderIdentifier",
-            "reminderId",
-            "reminderID",
-            "calendarItemIdentifier",
-            "calendarItemExternalIdentifier"
-        ]
-        for c in candidates {
-            if let s = link.valueIfExists(forKey: c) as? String, !s.isEmpty {
-                keys.insert(s)
-            }
-        }
-        return keys
-    }
+    // MARK: - Stable identifier (for selection UI)
 
-    // MARK: - Stable identifier (for selection UI only)
-
-    /// Selection key for the list UI.
-    /// Prefer stamped UUID if present (so the UI stays consistent after stamping),
-    /// otherwise fall back to Apple identifiers.
     private func stableIdentifierToStore(for r: EKReminder) -> String {
+        // For selection/UI: prefer stamp if present so the row stays consistent after stamping.
         if let stamped = stampedUUID(from: r) { return stamped }
         if let ext = r.calendarItemExternalIdentifier, !ext.isEmpty { return ext }
         return r.calendarItemIdentifier
@@ -438,5 +522,27 @@ private extension NSManagedObject {
         if entity.attributesByName[key] != nil { return value(forKey: key) }
         if entity.relationshipsByName[key] != nil { return value(forKey: key) }
         return nil
+    }
+}
+
+// MARK: - SwiftUI List identity helper
+
+private extension EKReminder {
+    var hsRowID: String {
+        let due = dueDateComponents?.date?.timeIntervalSince1970 ?? -1
+        let comp = completionDate?.timeIntervalSince1970 ?? -1
+
+        let base = (calendarItemExternalIdentifier?.isEmpty == false)
+            ? calendarItemExternalIdentifier!
+            : calendarItemIdentifier
+
+        return [
+            base,
+            calendar.title,
+            title,
+            String(due),
+            String(isCompleted),
+            String(comp)
+        ].joined(separator: "|")
     }
 }
