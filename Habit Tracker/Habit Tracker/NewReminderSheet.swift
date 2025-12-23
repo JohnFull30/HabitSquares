@@ -124,18 +124,22 @@ struct NewReminderSheet: View {
 
             let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
             reminder.title = cleanTitle
-
-            // Optional: helpful note so user remembers why it exists.
             reminder.notes = "Created by HabitSquares for habit: \(habitName)"
 
-            // Due date/time (today at chosen time, or no due time)
+            // ✅ Due date components (required for repeating reminders)
+            var comps = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+
             if hasDueTime {
-                var comps = Calendar.current.dateComponents([.year, .month, .day], from: Date())
                 let timeComps = Calendar.current.dateComponents([.hour, .minute], from: dueTime)
                 comps.hour = timeComps.hour
                 comps.minute = timeComps.minute
-                reminder.dueDateComponents = comps
+            } else {
+                // date-only due (no time) still satisfies EventKit for recurrence
+                comps.hour = nil
+                comps.minute = nil
             }
+
+            reminder.dueDateComponents = comps
 
             // Daily recurrence
             let rule = EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil)
