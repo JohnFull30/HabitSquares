@@ -9,6 +9,12 @@ struct AddRemindersSheet: View {
     let habit: NSManagedObject
 
     @State private var store = EKEventStore()
+    
+    @State private var showNewReminderSheet = false
+
+    private var habitName: String {
+        (habit.value(forKey: "name") as? String) ?? "Habit"
+    }
 
     @State private var allReminders: [EKReminder] = []
     @State private var query: String = ""
@@ -31,6 +37,22 @@ struct AddRemindersSheet: View {
     private let stampScheme = "habitsquares"
     private let stampHost = "reminder-link"
 
+    private func handleCreatedReminder(_ r: EKReminder, isRequired: Bool) {
+        // 1) Add it to the current list immediately (no refetch needed)
+        if !allReminders.contains(where: { $0.calendarItemIdentifier == r.calendarItemIdentifier }) {
+            allReminders.append(r)
+        }
+
+        // 2) Optionally jump the list filter to the reminder’s list
+        selectedCalendarID = r.calendar.calendarIdentifier
+
+        // 3) Auto-select it so the user can just hit Save
+        let key = stableIdentifierToStore(for: r)
+        selectedKeys.insert(key)
+        if isRequired { requiredKeys.insert(key) }
+        else { requiredKeys.remove(key) }
+    }
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
@@ -75,8 +97,16 @@ struct AddRemindersSheet: View {
             }
             .onAppear {
                 Task { await load() }
+                
             }
+            .sheet(isPresented: $showNewReminderSheet) {
+                NewReminderSheet(habitName: habitName) { newReminder, isRequired in
+                    handleCreatedReminder(newReminder, isRequired: isRequired)
+                }
+            }
+            
         }
+        
     }
 
     // MARK: - Glass header
@@ -96,6 +126,15 @@ struct AddRemindersSheet: View {
 
             TextField("Search reminders", text: $query)
                 .textFieldStyle(.roundedBorder)
+            
+            Button {
+                showNewReminderSheet = true
+            } label: {
+                Label("New Reminder", systemImage: "plus.circle")
+                    .font(.subheadline)
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(12)
         .background(.ultraThinMaterial)
