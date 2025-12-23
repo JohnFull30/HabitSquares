@@ -5,7 +5,6 @@
 //  Created by John Fuller on 12/23/25.
 //
 
-
 import SwiftUI
 import EventKit
 
@@ -86,7 +85,11 @@ struct NewReminderSheet: View {
                     Button(isSaving ? "Saving…" : "Save") {
                         Task { await save() }
                     }
-                    .disabled(isSaving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedCalendar == nil)
+                    .disabled(
+                        isSaving ||
+                        title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        selectedCalendar == nil
+                    )
                 }
             }
             .task { await loadCalendars() }
@@ -127,6 +130,7 @@ struct NewReminderSheet: View {
             reminder.notes = "Created by HabitSquares for habit: \(habitName)"
 
             // ✅ Due date components (required for repeating reminders)
+            // Set at least a date-only due date; optionally include time.
             var comps = Calendar.current.dateComponents([.year, .month, .day], from: Date())
 
             if hasDueTime {
@@ -159,15 +163,19 @@ struct NewReminderSheet: View {
         switch status {
         case .authorized, .fullAccess:
             return true
+
         case .notDetermined:
             if #available(iOS 17.0, *) {
                 do { return try await store.requestFullAccessToReminders() }
                 catch { return false }
             } else {
                 return await withCheckedContinuation { cont in
-                    store.requestAccess(to: .reminder) { granted, _ in cont.resume(returning: granted) }
+                    store.requestAccess(to: .reminder) { granted, _ in
+                        cont.resume(returning: granted)
+                    }
                 }
             }
+
         default:
             return false
         }
