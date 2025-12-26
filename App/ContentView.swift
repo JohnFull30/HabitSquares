@@ -18,10 +18,9 @@ struct ContentView: View {
     // Programmatic navigation (keeps LazyVGrid spacing stable)
     @State private var path = NavigationPath()
 
-    
     // Which sheet is currently active
     @State private var activeSheet: ActiveSheet?
-    
+
     @AppStorage("lastHistoryBackfillDay") private var lastHistoryBackfillDay: Double = 0
 
     // Newest-first array for grid rendering
@@ -55,17 +54,17 @@ struct ContentView: View {
         NavigationStack(path: $path) {
             ZStack(alignment: .bottom) {
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
-                
+
                 // MAIN LAYOUT: header + content
                 VStack(alignment: .leading, spacing: 16) {
-                    
+
                     // HEADER – as high as possible
                     HStack(alignment: .center) {
                         Text("habitSquares")
                             .font(.largeTitle.weight(.bold))
-                        
+
                         Spacer()
-                        // (No + button up here anymore)
+
                         Button {
                             syncTodayAndHistoryIfNeeded(force: true)
                         } label: {
@@ -77,7 +76,7 @@ struct ContentView: View {
                     .hsCard()
                     .padding(.horizontal)
                     .padding(.top, 4)
-                    
+
                     // CONTENT
                     Group {
                         if habitResults.isEmpty {
@@ -103,9 +102,8 @@ struct ContentView: View {
                                             // Tap card → navigate to details (no NavigationLink layout side-effects)
                                             path.append(habit.objectID)
                                         } label: {
-                                            habitCardStyle {
-                                                HabitHeatmapView(habit: habit)
-                                            }
+                                            HabitHeatmapView(habit: habit)
+                                                .hsCard()
                                         }
                                         .buttonStyle(HabitCardButtonStyle())
                                         .contentShape(Rectangle())
@@ -115,7 +113,7 @@ struct ContentView: View {
                                             } label: {
                                                 Label("Link Reminders", systemImage: "link")
                                             }
-                                            
+
                                             Button(role: .destructive) {
                                                 deleteHabit(habit)
                                             } label: {
@@ -132,7 +130,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                
+
                 // FLOATING BOTTOM "ADD HABIT" BUTTON
                 Button {
                     activeSheet = .addHabit
@@ -155,7 +153,7 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 32)
             }
-            
+
             // Navigate to HabitDetailView using Core Data objectID
             .navigationDestination(for: NSManagedObjectID.self) { objectID in
                 if let habit = viewContext.object(with: objectID) as? Habit {
@@ -164,20 +162,20 @@ struct ContentView: View {
                     Text("Habit not found")
                 }
             }
-            
+
             // SHEETS
             .sheet(item: $activeSheet) { sheet in
                 switch sheet {
                 case .addHabit:
                     AddHabitView()
                         .environment(\.managedObjectContext, viewContext)
-                    
+
                 case .reminders(let habit):
                     ReminderListView(habit: habit)
                         .environment(\.managedObjectContext, viewContext)
                 }
             }
-            
+
             // MARK: - SYNC + LOGGING
             .onAppear {
                 logCoreDataHabits("onAppear")
@@ -190,25 +188,11 @@ struct ContentView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
                 syncTodayOnly() // fast when reminders change
-            }        // Hide default nav bar so our custom header can sit as high as possible
+            }
+
+            // Hide default nav bar so our custom header can sit as high as possible
             .toolbar(.hidden, for: .navigationBar)
         }
-    }
-
-    // MARK: - Card styling helper
-
-    private func habitCardStyle<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(.thinMaterial)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
-            )
-            .padding(.vertical, 4)
     }
 
     // MARK: - Habit card button style (press feedback)

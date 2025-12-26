@@ -1,11 +1,3 @@
-//
-//  HabitCardStyle.swift
-//  Habit Tracker
-//
-//  Created by John Fuller on 12/20/25.
-//
-
-
 import SwiftUI
 
 struct HabitCardStyle: ViewModifier {
@@ -16,17 +8,17 @@ struct HabitCardStyle: ViewModifier {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(.thinMaterial)
+                    .fill(Color(.systemBackground)) // <-- was .thinMaterial
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08))
+                    .strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.06))
             )
             .shadow(
-                color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.12),
-                radius: 18,
+                color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.10),
+                radius: 16,
                 x: 0,
-                y: 10
+                y: 8
             )
     }
 }

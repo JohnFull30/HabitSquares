@@ -10,7 +10,7 @@ import SwiftUI
 
 /// One source of truth for how squares map to colors/intensity.
 struct HeatmapPalette: Sendable {
-    var empty: Color = Color(.systemGray5)
+    var empty: Color = Color(.systemGray4)
 
     /// Opacity for incomplete-but-has-a-row (when total is unknown / or just "started")
     var startedOpacity: Double = 0.25
