@@ -12,7 +12,9 @@ struct WidgetSnapshot: Codable {
     var days: [WidgetDay]
     var totalHabits: Int
     var completeHabits: Int
+    
 }
+
 
 enum WidgetSnapshotStore {
     static let filename = "widget_snapshot.json"

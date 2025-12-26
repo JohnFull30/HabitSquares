@@ -10,7 +10,40 @@
 		523CBE282ED01E0000455486 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 523CBE272ED01E0000455486 /* WidgetKit.framework */; };
 		523CBE2A2ED01E0000455486 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 523CBE292ED01E0000455486 /* SwiftUI.framework */; };
 		523CBE3B2ED01E0000455486 /* Habit Tracker WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 523CBE252ED01E0000455486 /* Habit Tracker WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		524461ED2EFF36A400537C6C /* HeatmapPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524461EC2EFF36A400537C6C /* HeatmapPalette.swift */; };
+		527137E42EFDFC78001507E8 /* WidgetCacheWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E32EFDFC78001507E8 /* WidgetCacheWriter.swift */; };
+		527137E72EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E62EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift */; };
+		527137E92EFE0E4F001507E8 /* WidgetHabitEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E82EFE0E4F001507E8 /* WidgetHabitEntity.swift */; };
+		527137EB2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137EA2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift */; };
+		52D1D70A2EFB0E5C00B3F91A /* AddHabitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6F32EFB0E5C00B3F91A /* AddHabitView.swift */; };
+		52D1D70B2EFB0E5C00B3F91A /* AddRemindersSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6F42EFB0E5C00B3F91A /* AddRemindersSheet.swift */; };
+		52D1D70D2EFB0E5C00B3F91A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6F72EFB0E5C00B3F91A /* ContentView.swift */; };
+		52D1D70E2EFB0E5C00B3F91A /* Habit_TrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6F92EFB0E5C00B3F91A /* Habit_TrackerApp.swift */; };
+		52D1D70F2EFB0E5C00B3F91A /* HabitCardStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6FA2EFB0E5C00B3F91A /* HabitCardStyle.swift */; };
+		52D1D7102EFB0E5C00B3F91A /* HabitCompletionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6FB2EFB0E5C00B3F91A /* HabitCompletionEngine.swift */; };
+		52D1D7112EFB0E5C00B3F91A /* HabitDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6FC2EFB0E5C00B3F91A /* HabitDetailView.swift */; };
+		52D1D7122EFB0E5C00B3F91A /* HabitHeatmapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6FD2EFB0E5C00B3F91A /* HabitHeatmapView.swift */; };
+		52D1D7132EFB0E5C00B3F91A /* HabitModel.xcdatamodel in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6FE2EFB0E5C00B3F91A /* HabitModel.xcdatamodel */; };
+		52D1D7142EFB0E5C00B3F91A /* HabitModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6FF2EFB0E5C00B3F91A /* HabitModels.swift */; };
+		52D1D7162EFB0E5C00B3F91A /* HSCardStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7012EFB0E5C00B3F91A /* HSCardStyle.swift */; };
+		52D1D7172EFB0E5C00B3F91A /* ReminderListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7032EFB0E5C00B3F91A /* ReminderListView.swift */; };
+		52D1D7182EFB0E5C00B3F91A /* RemindersClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7042EFB0E5C00B3F91A /* RemindersClient.swift */; };
+		52D1D7192EFB0E5C00B3F91A /* ReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7052EFB0E5C00B3F91A /* ReminderService.swift */; };
+		52D1D71A2EFB0E5C00B3F91A /* HabitSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7082EFB0E5C00B3F91A /* HabitSeeder.swift */; };
+		52D1D71B2EFB0E5C00B3F91A /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7092EFB0E5C00B3F91A /* PersistenceController.swift */; };
+		52D1D7312EFB0FB200B3F91A /* NewReminderSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7302EFB0FB200B3F91A /* NewReminderSheet.swift */; };
+		52D1D7332EFB16E100B3F91A /* WidgetDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7322EFB16E100B3F91A /* WidgetDay.swift */; };
+		52D1D7342EFB16EE00B3F91A /* WidgetDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7322EFB16E100B3F91A /* WidgetDay.swift */; };
+		52D1D7372EFB16FC00B3F91A /* WidgetDataWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7362EFB16FC00B3F91A /* WidgetDataWriter.swift */; };
+		52D1D7382EFB176400B3F91A /* HabitSquaresWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7002EFB0E5C00B3F91A /* HabitSquaresWidget.swift */; };
 		52D1D73B2EFB263200B3F91A /* HabitSquaresWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7392EFB262300B3F91A /* HabitSquaresWidgetBundle.swift */; };
+		52D1D7432EFB623900B3F91A /* WidgetHabitStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7422EFB623900B3F91A /* WidgetHabitStub.swift */; };
+		52D1D7442EFB623900B3F91A /* WidgetHabitStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7422EFB623900B3F91A /* WidgetHabitStub.swift */; };
+		52D1D7462EFB624600B3F91A /* WidgetSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7452EFB624600B3F91A /* WidgetSharedStore.swift */; };
+		52D1D7472EFB624600B3F91A /* WidgetSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7452EFB624600B3F91A /* WidgetSharedStore.swift */; };
+		52D1D7492EFB625500B3F91A /* HabitID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7482EFB625500B3F91A /* HabitID.swift */; };
+		52D1D74A2EFB625500B3F91A /* HabitID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7482EFB625500B3F91A /* HabitID.swift */; };
+		52D1D74B2EFB72E700B3F91A /* WidgetDataWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7362EFB16FC00B3F91A /* WidgetDataWriter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,31 +92,46 @@
 		523CBE272ED01E0000455486 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		523CBE292ED01E0000455486 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		523CBE442ED01F9000455486 /* Habit Tracker WidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Habit Tracker WidgetExtension.entitlements"; sourceTree = "<group>"; };
+		524461EC2EFF36A400537C6C /* HeatmapPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapPalette.swift; sourceTree = "<group>"; };
+		527137E32EFDFC78001507E8 /* WidgetCacheWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetCacheWriter.swift; sourceTree = "<group>"; };
+		527137E62EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitWidgetConfigurationIntent.swift; sourceTree = "<group>"; };
+		527137E82EFE0E4F001507E8 /* WidgetHabitEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHabitEntity.swift; sourceTree = "<group>"; };
+		527137EA2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHabitEntityQuery.swift; sourceTree = "<group>"; };
+		527137EF2EFE2274001507E8 /* WidgetSnapshot+Placeholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WidgetSnapshot+Placeholder.swift"; sourceTree = "<group>"; };
 		528904C52EF62EAB00479793 /* Habit Tracker WidgetExtensionDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Habit Tracker WidgetExtensionDebug.entitlements"; sourceTree = "<group>"; };
+		52D1D6F32EFB0E5C00B3F91A /* AddHabitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddHabitView.swift; sourceTree = "<group>"; };
+		52D1D6F42EFB0E5C00B3F91A /* AddRemindersSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRemindersSheet.swift; sourceTree = "<group>"; };
+		52D1D6F72EFB0E5C00B3F91A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		52D1D6F82EFB0E5C00B3F91A /* Habit_Tracker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Habit_Tracker.entitlements; sourceTree = "<group>"; };
+		52D1D6F92EFB0E5C00B3F91A /* Habit_TrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Habit_TrackerApp.swift; sourceTree = "<group>"; };
+		52D1D6FA2EFB0E5C00B3F91A /* HabitCardStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitCardStyle.swift; sourceTree = "<group>"; };
+		52D1D6FB2EFB0E5C00B3F91A /* HabitCompletionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitCompletionEngine.swift; sourceTree = "<group>"; };
+		52D1D6FC2EFB0E5C00B3F91A /* HabitDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitDetailView.swift; sourceTree = "<group>"; };
+		52D1D6FD2EFB0E5C00B3F91A /* HabitHeatmapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitHeatmapView.swift; sourceTree = "<group>"; };
+		52D1D6FE2EFB0E5C00B3F91A /* HabitModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = HabitModel.xcdatamodel; sourceTree = "<group>"; };
+		52D1D6FF2EFB0E5C00B3F91A /* HabitModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitModels.swift; sourceTree = "<group>"; };
+		52D1D7002EFB0E5C00B3F91A /* HabitSquaresWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitSquaresWidget.swift; sourceTree = "<group>"; };
+		52D1D7012EFB0E5C00B3F91A /* HSCardStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HSCardStyle.swift; sourceTree = "<group>"; };
+		52D1D7022EFB0E5C00B3F91A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		52D1D7032EFB0E5C00B3F91A /* ReminderListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderListView.swift; sourceTree = "<group>"; };
+		52D1D7042EFB0E5C00B3F91A /* RemindersClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersClient.swift; sourceTree = "<group>"; };
+		52D1D7052EFB0E5C00B3F91A /* ReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderService.swift; sourceTree = "<group>"; };
+		52D1D7082EFB0E5C00B3F91A /* HabitSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitSeeder.swift; sourceTree = "<group>"; };
+		52D1D7092EFB0E5C00B3F91A /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
+		52D1D7302EFB0FB200B3F91A /* NewReminderSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewReminderSheet.swift; sourceTree = "<group>"; };
+		52D1D7322EFB16E100B3F91A /* WidgetDay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDay.swift; sourceTree = "<group>"; };
+		52D1D7362EFB16FC00B3F91A /* WidgetDataWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDataWriter.swift; sourceTree = "<group>"; };
 		52D1D7392EFB262300B3F91A /* HabitSquaresWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitSquaresWidgetBundle.swift; sourceTree = "<group>"; };
+		52D1D7422EFB623900B3F91A /* WidgetHabitStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHabitStub.swift; sourceTree = "<group>"; };
+		52D1D7452EFB624600B3F91A /* WidgetSharedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSharedStore.swift; sourceTree = "<group>"; };
+		52D1D7482EFB625500B3F91A /* HabitID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitID.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		521D692A2EE5E6B60065B7FC /* Exceptions for "Habit Tracker" folder in "Habit Tracker" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"Habit Tracker/HabitSquaresWidget.swift",
-				"Habit Tracker/Info.plist",
-			);
-			target = 523CBDE82ED010A900455486 /* Habit Tracker */;
-		};
 		523CBE3F2ED01E0000455486 /* Exceptions for "Habit Tracker Widget" folder in "Habit Tracker WidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-			);
-			target = 523CBE242ED01E0000455486 /* Habit Tracker WidgetExtension */;
-		};
-		52D1D7352EFB16EE00B3F91A /* Exceptions for "Habit Tracker" folder in "Habit Tracker WidgetExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"Habit Tracker/HabitSquaresWidget.swift",
-				"Habit Tracker/WidgetDay.swift",
 			);
 			target = 523CBE242ED01E0000455486 /* Habit Tracker WidgetExtension */;
 		};
@@ -92,10 +140,6 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		523CBDEB2ED010A900455486 /* Habit Tracker */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				521D692A2EE5E6B60065B7FC /* Exceptions for "Habit Tracker" folder in "Habit Tracker" target */,
-				52D1D7352EFB16EE00B3F91A /* Exceptions for "Habit Tracker" folder in "Habit Tracker WidgetExtension" target */,
-			);
 			path = "Habit Tracker";
 			sourceTree = "<group>";
 		};
@@ -156,9 +200,14 @@
 		523CBDE02ED010A900455486 = {
 			isa = PBXGroup;
 			children = (
+				52D1D7412EFB538200B3F91A /* Widget Extension */,
+				52D1D7402EFB537700B3F91A /* Widget Shared */,
+				52D1D73F2EFB536A00B3F91A /* Shared UI */,
+				52D1D73E2EFB536100B3F91A /* Reminders */,
+				52D1D73D2EFB535B00B3F91A /* Core */,
+				52D1D73C2EFB534B00B3F91A /* App */,
 				528904C52EF62EAB00479793 /* Habit Tracker WidgetExtensionDebug.entitlements */,
 				523CBE442ED01F9000455486 /* Habit Tracker WidgetExtension.entitlements */,
-				52D1D7392EFB262300B3F91A /* HabitSquaresWidgetBundle.swift */,
 				523CBDEB2ED010A900455486 /* Habit Tracker */,
 				523CBE002ED010AA00455486 /* Habit TrackerTests */,
 				523CBE0A2ED010AA00455486 /* Habit TrackerUITests */,
@@ -186,6 +235,88 @@
 				523CBE292ED01E0000455486 /* SwiftUI.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		527137E52EFE0E38001507E8 /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				527137EA2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift */,
+				527137E82EFE0E4F001507E8 /* WidgetHabitEntity.swift */,
+				527137E62EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift */,
+			);
+			path = Intents;
+			sourceTree = "<group>";
+		};
+		52D1D73C2EFB534B00B3F91A /* App */ = {
+			isa = PBXGroup;
+			children = (
+				52D1D6F92EFB0E5C00B3F91A /* Habit_TrackerApp.swift */,
+				52D1D6F72EFB0E5C00B3F91A /* ContentView.swift */,
+				52D1D6F82EFB0E5C00B3F91A /* Habit_Tracker.entitlements */,
+				52D1D7022EFB0E5C00B3F91A /* Info.plist */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		52D1D73D2EFB535B00B3F91A /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				527137E32EFDFC78001507E8 /* WidgetCacheWriter.swift */,
+				52D1D6FB2EFB0E5C00B3F91A /* HabitCompletionEngine.swift */,
+				52D1D6FE2EFB0E5C00B3F91A /* HabitModel.xcdatamodel */,
+				52D1D6FF2EFB0E5C00B3F91A /* HabitModels.swift */,
+				52D1D7082EFB0E5C00B3F91A /* HabitSeeder.swift */,
+				52D1D7092EFB0E5C00B3F91A /* PersistenceController.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		52D1D73E2EFB536100B3F91A /* Reminders */ = {
+			isa = PBXGroup;
+			children = (
+				52D1D6F32EFB0E5C00B3F91A /* AddHabitView.swift */,
+				52D1D6F42EFB0E5C00B3F91A /* AddRemindersSheet.swift */,
+				52D1D7042EFB0E5C00B3F91A /* RemindersClient.swift */,
+				52D1D7052EFB0E5C00B3F91A /* ReminderService.swift */,
+				52D1D7302EFB0FB200B3F91A /* NewReminderSheet.swift */,
+				52D1D7032EFB0E5C00B3F91A /* ReminderListView.swift */,
+			);
+			path = Reminders;
+			sourceTree = "<group>";
+		};
+		52D1D73F2EFB536A00B3F91A /* Shared UI */ = {
+			isa = PBXGroup;
+			children = (
+				524461EC2EFF36A400537C6C /* HeatmapPalette.swift */,
+				52D1D6FA2EFB0E5C00B3F91A /* HabitCardStyle.swift */,
+				52D1D7012EFB0E5C00B3F91A /* HSCardStyle.swift */,
+				52D1D6FC2EFB0E5C00B3F91A /* HabitDetailView.swift */,
+				52D1D6FD2EFB0E5C00B3F91A /* HabitHeatmapView.swift */,
+			);
+			path = "Shared UI";
+			sourceTree = "<group>";
+		};
+		52D1D7402EFB537700B3F91A /* Widget Shared */ = {
+			isa = PBXGroup;
+			children = (
+				527137EF2EFE2274001507E8 /* WidgetSnapshot+Placeholder.swift */,
+				52D1D7482EFB625500B3F91A /* HabitID.swift */,
+				52D1D7452EFB624600B3F91A /* WidgetSharedStore.swift */,
+				52D1D7422EFB623900B3F91A /* WidgetHabitStub.swift */,
+				52D1D7362EFB16FC00B3F91A /* WidgetDataWriter.swift */,
+				52D1D7322EFB16E100B3F91A /* WidgetDay.swift */,
+			);
+			path = "Widget Shared";
+			sourceTree = "<group>";
+		};
+		52D1D7412EFB538200B3F91A /* Widget Extension */ = {
+			isa = PBXGroup;
+			children = (
+				527137E52EFE0E38001507E8 /* Intents */,
+				52D1D7002EFB0E5C00B3F91A /* HabitSquaresWidget.swift */,
+				52D1D7392EFB262300B3F91A /* HabitSquaresWidgetBundle.swift */,
+			);
+			path = "Widget Extension";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -367,6 +498,30 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				52D1D7332EFB16E100B3F91A /* WidgetDay.swift in Sources */,
+				52D1D70A2EFB0E5C00B3F91A /* AddHabitView.swift in Sources */,
+				52D1D70B2EFB0E5C00B3F91A /* AddRemindersSheet.swift in Sources */,
+				52D1D70D2EFB0E5C00B3F91A /* ContentView.swift in Sources */,
+				52D1D7312EFB0FB200B3F91A /* NewReminderSheet.swift in Sources */,
+				52D1D70E2EFB0E5C00B3F91A /* Habit_TrackerApp.swift in Sources */,
+				52D1D70F2EFB0E5C00B3F91A /* HabitCardStyle.swift in Sources */,
+				52D1D7102EFB0E5C00B3F91A /* HabitCompletionEngine.swift in Sources */,
+				52D1D74A2EFB625500B3F91A /* HabitID.swift in Sources */,
+				52D1D7112EFB0E5C00B3F91A /* HabitDetailView.swift in Sources */,
+				52D1D7122EFB0E5C00B3F91A /* HabitHeatmapView.swift in Sources */,
+				52D1D7132EFB0E5C00B3F91A /* HabitModel.xcdatamodel in Sources */,
+				524461ED2EFF36A400537C6C /* HeatmapPalette.swift in Sources */,
+				52D1D7372EFB16FC00B3F91A /* WidgetDataWriter.swift in Sources */,
+				52D1D7142EFB0E5C00B3F91A /* HabitModels.swift in Sources */,
+				527137E42EFDFC78001507E8 /* WidgetCacheWriter.swift in Sources */,
+				52D1D7162EFB0E5C00B3F91A /* HSCardStyle.swift in Sources */,
+				52D1D7172EFB0E5C00B3F91A /* ReminderListView.swift in Sources */,
+				52D1D7442EFB623900B3F91A /* WidgetHabitStub.swift in Sources */,
+				52D1D7182EFB0E5C00B3F91A /* RemindersClient.swift in Sources */,
+				52D1D7472EFB624600B3F91A /* WidgetSharedStore.swift in Sources */,
+				52D1D7192EFB0E5C00B3F91A /* ReminderService.swift in Sources */,
+				52D1D71A2EFB0E5C00B3F91A /* HabitSeeder.swift in Sources */,
+				52D1D71B2EFB0E5C00B3F91A /* PersistenceController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -388,6 +543,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				52D1D7342EFB16EE00B3F91A /* WidgetDay.swift in Sources */,
+				52D1D7492EFB625500B3F91A /* HabitID.swift in Sources */,
+				52D1D7432EFB623900B3F91A /* WidgetHabitStub.swift in Sources */,
+				52D1D7382EFB176400B3F91A /* HabitSquaresWidget.swift in Sources */,
+				52D1D74B2EFB72E700B3F91A /* WidgetDataWriter.swift in Sources */,
+				527137E92EFE0E4F001507E8 /* WidgetHabitEntity.swift in Sources */,
+				527137EB2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift in Sources */,
+				527137E72EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift in Sources */,
+				52D1D7462EFB624600B3F91A /* WidgetSharedStore.swift in Sources */,
 				52D1D73B2EFB263200B3F91A /* HabitSquaresWidgetBundle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -5,26 +5,70 @@
 
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 // MARK: - Provider
 
-struct HabitSquaresProvider: TimelineProvider {
+struct HabitSquaresProvider: AppIntentTimelineProvider {
+
     func placeholder(in context: Context) -> HabitSquaresEntry {
-        HabitSquaresEntry(date: .now, snapshot: WidgetSnapshotStore.placeholder())
+        let config = HabitWidgetConfigurationIntent()
+        let payload = loadPayload(for: config, dayCount: 60)
+        return HabitSquaresEntry(date: .now, configuration: config, payload: payload)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (HabitSquaresEntry) -> Void) {
-        let snap = WidgetSnapshotStore.load() ?? WidgetSnapshotStore.placeholder()
-        completion(HabitSquaresEntry(date: .now, snapshot: snap))
+    func snapshot(for configuration: HabitWidgetConfigurationIntent, in context: Context) async -> HabitSquaresEntry {
+        let payload = loadPayload(for: configuration, dayCount: 60)
+        return HabitSquaresEntry(date: .now, configuration: configuration, payload: payload)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<HabitSquaresEntry>) -> Void) {
-        let snap = WidgetSnapshotStore.load() ?? WidgetSnapshotStore.placeholder()
-        let entry = HabitSquaresEntry(date: .now, snapshot: snap)
+    func timeline(for configuration: HabitWidgetConfigurationIntent, in context: Context) async -> Timeline<HabitSquaresEntry> {
+        let payload = loadPayload(for: configuration, dayCount: 60)
+        let entry = HabitSquaresEntry(date: .now, configuration: configuration, payload: payload)
 
-        // Fallback refresh (your app also reloads timelines when it writes a snapshot)
+        // refresh every ~30 min
         let next = Calendar.current.date(byAdding: .minute, value: 30, to: .now) ?? .now.addingTimeInterval(1800)
-        completion(Timeline(entries: [entry], policy: .after(next)))
+        return Timeline(entries: [entry], policy: .after(next))
+    }
+
+    // MARK: - Loader
+
+    private func loadPayload(for configuration: HabitWidgetConfigurationIntent,
+                             dayCount: Int) -> WidgetHabitTodayPayload {
+
+        // Your Intent likely has: @Parameter(title: "Habit") var habit: WidgetHabitEntity?
+        // We'll try to read the selected habit id.
+        let selectedHabitID = configuration.habit?.id
+
+        if let hid = selectedHabitID,
+           let stored = WidgetSharedStore.readToday(habitID: hid) {
+            return stored
+        }
+
+        // Fallback placeholder
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let fmt = DateFormatter()
+        fmt.calendar = cal
+        fmt.locale = .current
+        fmt.timeZone = .current
+        fmt.dateFormat = "yyyy-MM-dd"
+
+        let days: [WidgetDay] = (0..<dayCount).map { i in
+            let d = cal.date(byAdding: .day, value: i - (dayCount - 1), to: today) ?? today
+            let dk = fmt.string(from: d)
+            return WidgetDay(dateKey: dk, isComplete: false)
+        }
+
+        return WidgetHabitTodayPayload(
+            updatedAt: Date(),
+            habitID: selectedHabitID ?? "unknown",
+            habitName: "Habit",
+            totalRequired: 0,
+            completedRequired: 0,
+            isComplete: false,
+            days: days
+        )
     }
 }
 
@@ -32,7 +76,8 @@ struct HabitSquaresProvider: TimelineProvider {
 
 struct HabitSquaresEntry: TimelineEntry {
     let date: Date
-    let snapshot: WidgetSnapshot
+    let configuration: HabitWidgetConfigurationIntent
+    let payload: WidgetHabitTodayPayload
 }
 
 // MARK: - Widget
@@ -41,14 +86,16 @@ struct HabitSquaresWidget: Widget {
     let kind = "HabitSquaresWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: HabitSquaresProvider()) { entry in
+        AppIntentConfiguration(
+            kind: kind,
+            intent: HabitWidgetConfigurationIntent.self,
+            provider: HabitSquaresProvider()
+        ) { entry in
             HabitSquaresWidgetView(entry: entry)
         }
         .configurationDisplayName("HabitSquares")
         .description("Your recent completions at a glance.")
         .supportedFamilies([.systemSmall, .systemMedium])
-        // NOTE: Do NOT disable margins — we want a clean centered look, not edge-to-edge stretch.
-        // .contentMarginsDisabled()
     }
 }
 
@@ -62,7 +109,6 @@ struct HabitSquaresWidgetView: View {
         GeometryReader { proxy in
             let outer = proxy.size
 
-            // Inner padding so it feels like your app card, not stretched.
             let inset: CGFloat = (family == .systemSmall) ? 12 : 14
             let inner = CGSize(
                 width: max(1, outer.width - inset * 2),
@@ -71,13 +117,10 @@ struct HabitSquaresWidgetView: View {
 
             let layout = WidgetGridLayout.pick(for: family, in: inner)
 
-            // Sort to guarantee correct placement (oldest -> newest).
-            let sortedDays = entry.snapshot.days.sorted { $0.dateKey < $1.dateKey }
-
-            // Take the last N (most recent), keep chronological order so newest ends bottom-right.
+            // days are expected oldest -> newest already, but sort just in case
+            let sortedDays = entry.payload.days.sorted { $0.dateKey < $1.dateKey }
             let chosen = Array(sortedDays.suffix(layout.count))
 
-            // Pad if needed so the grid stays full
             let padded: [WidgetDay?] =
                 chosen.map { Optional($0) } +
                 Array(repeating: nil, count: max(0, layout.count - chosen.count))
@@ -102,7 +145,7 @@ struct HabitSquaresWidgetView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
         .containerBackground(.background, for: .widget)
-        .widgetURL(URL(string: "habitsquares://open"))
+        .widgetURL(URL(string: "habitsquares://open?habit=\(entry.payload.habitID)"))
     }
 }
 
@@ -138,16 +181,13 @@ struct WidgetGridLayout {
             )
         }
 
-        // Small always 30 in a nice 6×5.
         if family == .systemSmall {
             return layout(count: 30, cols: 6, rows: 5)
         }
 
-        // Medium: try 60 (10×6) IF it still looks good; otherwise use 30 (6×5) bigger squares.
         let l60 = layout(count: 60, cols: 10, rows: 6)
         let l30 = layout(count: 30, cols: 6, rows: 5)
 
-        // If 60-day squares are at least 80% of the 30-day square size AND not tiny, pick 60.
         if l60.square >= max(6, l30.square * 0.80) {
             return l60
         } else {
