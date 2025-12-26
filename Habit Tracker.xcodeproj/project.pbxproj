@@ -11,6 +11,7 @@
 		523CBE2A2ED01E0000455486 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 523CBE292ED01E0000455486 /* SwiftUI.framework */; };
 		523CBE3B2ED01E0000455486 /* Habit Tracker WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 523CBE252ED01E0000455486 /* Habit Tracker WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		524461ED2EFF36A400537C6C /* HeatmapPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524461EC2EFF36A400537C6C /* HeatmapPalette.swift */; };
+		524461F02EFF3C7F00537C6C /* HeatmapPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524461EC2EFF36A400537C6C /* HeatmapPalette.swift */; };
 		527137E42EFDFC78001507E8 /* WidgetCacheWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E32EFDFC78001507E8 /* WidgetCacheWriter.swift */; };
 		527137E72EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E62EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift */; };
 		527137E92EFE0E4F001507E8 /* WidgetHabitEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E82EFE0E4F001507E8 /* WidgetHabitEntity.swift */; };
@@ -211,9 +212,9 @@
 				523CBDEB2ED010A900455486 /* Habit Tracker */,
 				523CBE002ED010AA00455486 /* Habit TrackerTests */,
 				523CBE0A2ED010AA00455486 /* Habit TrackerUITests */,
-				523CBE2B2ED01E0000455486 /* Habit Tracker Widget */,
 				523CBE262ED01E0000455486 /* Frameworks */,
 				523CBDEA2ED010A900455486 /* Products */,
+				523CBE2B2ED01E0000455486 /* Habit Tracker Widget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -547,6 +548,7 @@
 				52D1D7492EFB625500B3F91A /* HabitID.swift in Sources */,
 				52D1D7432EFB623900B3F91A /* WidgetHabitStub.swift in Sources */,
 				52D1D7382EFB176400B3F91A /* HabitSquaresWidget.swift in Sources */,
+				524461F02EFF3C7F00537C6C /* HeatmapPalette.swift in Sources */,
 				52D1D74B2EFB72E700B3F91A /* WidgetDataWriter.swift in Sources */,
 				527137E92EFE0E4F001507E8 /* WidgetHabitEntity.swift in Sources */,
 				527137EB2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift in Sources */,

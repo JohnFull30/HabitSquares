@@ -22,6 +22,7 @@ private func isoDayKey(_ date: Date) -> String {
     cal.timeZone = TimeZone(secondsFromGMT: 0)!
     let comps = cal.dateComponents([.year, .month, .day], from: date)
     let normalized = cal.date(from: comps) ?? date
+
     let f = DateFormatter()
     f.calendar = cal
     f.locale = Locale(identifier: "en_US_POSIX")
@@ -34,6 +35,7 @@ private func readCache() -> HeatmapCacheLocal? {
     guard let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) else { return nil }
     let url = container.appendingPathComponent(cacheFileName)
     guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+
     do {
         let data = try Data(contentsOf: url)
         return try JSONDecoder().decode(HeatmapCacheLocal.self, from: data)
@@ -46,6 +48,7 @@ private func makeRecentCounts(days: Int = 28) -> [Int] {
     let cache = readCache()
     var result: [Int] = []
     let now = Date()
+
     var cal = Calendar(identifier: .iso8601)
     cal.timeZone = TimeZone(secondsFromGMT: 0)!
 
@@ -64,6 +67,8 @@ private func sampleCounts(_ days: Int = 28) -> [Int] {
     return (0..<days).map { $0 % 3 }
 }
 
+// MARK: - Timeline
+
 struct Provider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
         SimpleEntry(date: Date(), configuration: ConfigurationAppIntent(), counts: sampleCounts())
@@ -73,7 +78,7 @@ struct Provider: AppIntentTimelineProvider {
         let counts = makeRecentCounts()
         return SimpleEntry(date: Date(), configuration: configuration, counts: counts.isEmpty ? sampleCounts() : counts)
     }
-    
+
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
         var entries: [SimpleEntry] = []
 
@@ -87,10 +92,6 @@ struct Provider: AppIntentTimelineProvider {
 
         return Timeline(entries: entries, policy: .atEnd)
     }
-
-//    func relevances() async -> WidgetRelevances<ConfigurationAppIntent> {
-//        // Generate a list containing the contexts this widget is relevant in.
-//    }
 }
 
 struct SimpleEntry: TimelineEntry {
@@ -99,8 +100,12 @@ struct SimpleEntry: TimelineEntry {
     let counts: [Int] // grid counts for recent days (e.g., 28 cells)
 }
 
-struct Habit_Tracker_WidgetEntryView : View {
+// MARK: - View
+
+struct Habit_Tracker_WidgetEntryView: View {
     var entry: Provider.Entry
+
+    private let palette = HeatmapPalette()
 
     private var columns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: 3), count: 7)
@@ -118,7 +123,7 @@ struct Habit_Tracker_WidgetEntryView : View {
                 ForEach(entry.counts.indices, id: \.self) { idx in
                     let count = entry.counts[idx]
                     Rectangle()
-                        .fill(color(for: count))
+                        .fill(squareFill(for: count))
                         .frame(height: 10)
                         .cornerRadius(2)
                         .accessibilityLabel("Day \(idx + 1), count \(count)")
@@ -135,17 +140,27 @@ struct Habit_Tracker_WidgetEntryView : View {
             }
         }
         .padding(8)
-        .containerBackground(.fill.tertiary, for: .widget)
-    }
+        .containerBackground(.background, for: .widget)    }
 
-    private func color(for count: Int) -> Color {
-        switch count {
-        case 0: return Color.gray.opacity(0.25)
-        case 1: return Color.green.opacity(0.6)
-        default: return Color.green
+    /// Widget currently stores `count` per day in the cache.
+    /// For now we map it to a simple progress model:
+    /// - 0 => empty
+    /// - 1 => partial (started)
+    /// - 2+ => complete
+    ///
+    /// Later: switch this to `completedRequired/totalRequired` coming from your widget payload.
+    private func squareFill(for count: Int) -> Color {
+        let base = Color.green // TODO: later pull from payload/habit
+
+        if count <= 0 {
+            return palette.empty
+        } else {
+            // MVP parity: any progress means "green"
+            return palette.color(base: base, isComplete: true, hasRow: true)
         }
-    }
-}
+    }}
+
+// MARK: - Widget
 
 struct Habit_Tracker_Widget: Widget {
     let kind: String = "Habit_Tracker_Widget"
@@ -157,13 +172,15 @@ struct Habit_Tracker_Widget: Widget {
     }
 }
 
+// MARK: - Intent Defaults + Previews
+
 extension ConfigurationAppIntent {
     fileprivate static var smiley: ConfigurationAppIntent {
         let intent = ConfigurationAppIntent()
         intent.favoriteEmoji = "😀"
         return intent
     }
-    
+
     fileprivate static var starEyes: ConfigurationAppIntent {
         let intent = ConfigurationAppIntent()
         intent.favoriteEmoji = "🤩"
