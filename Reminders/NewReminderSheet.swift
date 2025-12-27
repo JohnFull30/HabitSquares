@@ -13,8 +13,9 @@ import EventKit
 /// - Optionally sets a due time
 /// - Returns the created EKReminder so the caller can link it to the Habit
 struct NewReminderSheet: View {
+    let eventStore: EKEventStore
     let habitName: String
-    let onCreated: (EKReminder, Bool) -> Void   // (reminder, isRequired)
+    let onCreate: (EKReminder, Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
@@ -29,8 +30,6 @@ struct NewReminderSheet: View {
 
     @State private var isSaving: Bool = false
     @State private var errorMessage: String?
-
-    private let store = EKEventStore()
 
     var body: some View {
         NavigationStack {
@@ -107,22 +106,28 @@ struct NewReminderSheet: View {
             return
         }
 
-        let cals = store.calendars(for: .reminder)
+        let cals = eventStore.calendars(for: .reminder)
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
 
-        calendars = cals
-        selectedCalendar = selectedCalendar ?? cals.first
+        await MainActor.run {
+            calendars = cals
+            selectedCalendar = selectedCalendar ?? cals.first
+        }
     }
 
     private func save() async {
         guard let calendar = selectedCalendar else { return }
 
-        isSaving = true
-        errorMessage = nil
-        defer { isSaving = false }
+        await MainActor.run {
+            isSaving = true
+            errorMessage = nil
+        }
+        defer {
+            Task { @MainActor in isSaving = false }
+        }
 
         do {
-            let reminder = EKReminder(eventStore: store)
+            let reminder = EKReminder(eventStore: eventStore)
             reminder.calendar = calendar
 
             let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -130,7 +135,6 @@ struct NewReminderSheet: View {
             reminder.notes = "Created by HabitSquares for habit: \(habitName)"
 
             // ✅ Due date components (required for repeating reminders)
-            // Set at least a date-only due date; optionally include time.
             var comps = Calendar.current.dateComponents([.year, .month, .day], from: Date())
 
             if hasDueTime {
@@ -138,7 +142,6 @@ struct NewReminderSheet: View {
                 comps.hour = timeComps.hour
                 comps.minute = timeComps.minute
             } else {
-                // date-only due (no time) still satisfies EventKit for recurrence
                 comps.hour = nil
                 comps.minute = nil
             }
@@ -149,12 +152,17 @@ struct NewReminderSheet: View {
             let rule = EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil)
             reminder.recurrenceRules = [rule]
 
-            try store.save(reminder, commit: true)
+            try eventStore.save(reminder, commit: true)
 
-            onCreated(reminder, isRequired)
-            dismiss()
+            // Make sure UI state updates happen on the main actor
+            await MainActor.run {
+                onCreate(reminder, isRequired)
+                dismiss()
+            }
         } catch {
-            errorMessage = "Couldn’t save reminder: \(error.localizedDescription)"
+            await MainActor.run {
+                errorMessage = "Couldn’t save reminder: \(error.localizedDescription)"
+            }
         }
     }
 
@@ -166,11 +174,11 @@ struct NewReminderSheet: View {
 
         case .notDetermined:
             if #available(iOS 17.0, *) {
-                do { return try await store.requestFullAccessToReminders() }
+                do { return try await eventStore.requestFullAccessToReminders() }
                 catch { return false }
             } else {
                 return await withCheckedContinuation { cont in
-                    store.requestAccess(to: .reminder) { granted, _ in
+                    eventStore.requestAccess(to: .reminder) { granted, _ in
                         cont.resume(returning: granted)
                     }
                 }

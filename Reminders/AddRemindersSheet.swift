@@ -100,7 +100,7 @@ struct AddRemindersSheet: View {
                 
             }
             .sheet(isPresented: $showNewReminderSheet) {
-                NewReminderSheet(habitName: habitName) { newReminder, isRequired in
+                NewReminderSheet(eventStore: store, habitName: habitName) { newReminder, isRequired in
                     handleCreatedReminder(newReminder, isRequired: isRequired)
                 }
             }

@@ -12,6 +12,7 @@
 		523CBE3B2ED01E0000455486 /* Habit Tracker WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 523CBE252ED01E0000455486 /* Habit Tracker WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		524461ED2EFF36A400537C6C /* HeatmapPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524461EC2EFF36A400537C6C /* HeatmapPalette.swift */; };
 		524461F02EFF3C7F00537C6C /* HeatmapPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524461EC2EFF36A400537C6C /* HeatmapPalette.swift */; };
+		524461F22EFF575300537C6C /* HabitSquaresWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524461F12EFF575300537C6C /* HabitSquaresWidgetView.swift */; };
 		527137E42EFDFC78001507E8 /* WidgetCacheWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E32EFDFC78001507E8 /* WidgetCacheWriter.swift */; };
 		527137E72EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E62EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift */; };
 		527137E92EFE0E4F001507E8 /* WidgetHabitEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E82EFE0E4F001507E8 /* WidgetHabitEntity.swift */; };
@@ -94,6 +95,7 @@
 		523CBE292ED01E0000455486 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		523CBE442ED01F9000455486 /* Habit Tracker WidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Habit Tracker WidgetExtension.entitlements"; sourceTree = "<group>"; };
 		524461EC2EFF36A400537C6C /* HeatmapPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapPalette.swift; sourceTree = "<group>"; };
+		524461F12EFF575300537C6C /* HabitSquaresWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitSquaresWidgetView.swift; sourceTree = "<group>"; };
 		527137E32EFDFC78001507E8 /* WidgetCacheWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetCacheWriter.swift; sourceTree = "<group>"; };
 		527137E62EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitWidgetConfigurationIntent.swift; sourceTree = "<group>"; };
 		527137E82EFE0E4F001507E8 /* WidgetHabitEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHabitEntity.swift; sourceTree = "<group>"; };
@@ -315,6 +317,7 @@
 			children = (
 				527137E52EFE0E38001507E8 /* Intents */,
 				52D1D7002EFB0E5C00B3F91A /* HabitSquaresWidget.swift */,
+				524461F12EFF575300537C6C /* HabitSquaresWidgetView.swift */,
 				52D1D7392EFB262300B3F91A /* HabitSquaresWidgetBundle.swift */,
 			);
 			path = "Widget Extension";
@@ -546,6 +549,7 @@
 			files = (
 				52D1D7342EFB16EE00B3F91A /* WidgetDay.swift in Sources */,
 				52D1D7492EFB625500B3F91A /* HabitID.swift in Sources */,
+				524461F22EFF575300537C6C /* HabitSquaresWidgetView.swift in Sources */,
 				52D1D7432EFB623900B3F91A /* WidgetHabitStub.swift in Sources */,
 				52D1D7382EFB176400B3F91A /* HabitSquaresWidget.swift in Sources */,
 				524461F02EFF3C7F00537C6C /* HeatmapPalette.swift in Sources */,

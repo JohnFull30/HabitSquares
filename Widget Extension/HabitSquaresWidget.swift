@@ -13,62 +13,61 @@ struct HabitSquaresProvider: AppIntentTimelineProvider {
 
     func placeholder(in context: Context) -> HabitSquaresEntry {
         let config = HabitWidgetConfigurationIntent()
-        let payload = loadPayload(for: config, dayCount: 60)
-        return HabitSquaresEntry(date: .now, configuration: config, payload: payload)
+        let snap = loadSnapshot(for: config)
+        return HabitSquaresEntry(date: .now, configuration: config, snapshot: snap)
     }
 
     func snapshot(for configuration: HabitWidgetConfigurationIntent, in context: Context) async -> HabitSquaresEntry {
-        let payload = loadPayload(for: configuration, dayCount: 60)
-        return HabitSquaresEntry(date: .now, configuration: configuration, payload: payload)
+        let snap = loadSnapshot(for: configuration)
+        return HabitSquaresEntry(date: .now, configuration: configuration, snapshot: snap)
     }
 
     func timeline(for configuration: HabitWidgetConfigurationIntent, in context: Context) async -> Timeline<HabitSquaresEntry> {
-        let payload = loadPayload(for: configuration, dayCount: 60)
-        let entry = HabitSquaresEntry(date: .now, configuration: configuration, payload: payload)
+        let snap = loadSnapshot(for: configuration)
+        let entry = HabitSquaresEntry(date: .now, configuration: configuration, snapshot: snap)
 
-        // refresh every ~30 min
         let next = Calendar.current.date(byAdding: .minute, value: 30, to: .now) ?? .now.addingTimeInterval(1800)
         return Timeline(entries: [entry], policy: .after(next))
     }
 
-    // MARK: - Loader
+    // MARK: - Snapshot loader
 
-    private func loadPayload(for configuration: HabitWidgetConfigurationIntent,
-                             dayCount: Int) -> WidgetHabitTodayPayload {
+    private func loadSnapshot(for configuration: HabitWidgetConfigurationIntent) -> WidgetSnapshot {
 
-        // Your Intent likely has: @Parameter(title: "Habit") var habit: WidgetHabitEntity?
-        // We'll try to read the selected habit id.
-        let selectedHabitID = configuration.habit?.id
+        // If a habit is selected, use that habit’s payload (grid + today status)
+        if let selectedHabitID = configuration.habit?.id,
+           let payload = WidgetSharedStore.readToday(habitID: selectedHabitID) {
 
-        if let hid = selectedHabitID,
-           let stored = WidgetSharedStore.readToday(habitID: hid) {
-            return stored
+            return WidgetSnapshot(
+                updatedAt: payload.updatedAt,
+                days: payload.days,
+                totalHabits: 1,
+                completeHabits: payload.isComplete ? 1 : 0
+            )
         }
 
-        // Fallback placeholder
+        // Otherwise fall back to overall snapshot cache (or a placeholder)
+        if let snap = WidgetSharedStore.readSnapshot() {
+            return snap
+        }
+
+        // Basic placeholder
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
+        let start = cal.date(byAdding: .day, value: -59, to: today) ?? today
+
         let fmt = DateFormatter()
         fmt.calendar = cal
         fmt.locale = .current
         fmt.timeZone = .current
         fmt.dateFormat = "yyyy-MM-dd"
 
-        let days: [WidgetDay] = (0..<dayCount).map { i in
-            let d = cal.date(byAdding: .day, value: i - (dayCount - 1), to: today) ?? today
-            let dk = fmt.string(from: d)
-            return WidgetDay(dateKey: dk, isComplete: false)
+        let days = (0..<60).map { i -> WidgetDay in
+            let d = cal.date(byAdding: .day, value: i, to: start) ?? start
+            return WidgetDay(dateKey: fmt.string(from: d), isComplete: false)
         }
 
-        return WidgetHabitTodayPayload(
-            updatedAt: Date(),
-            habitID: selectedHabitID ?? "unknown",
-            habitName: "Habit",
-            totalRequired: 0,
-            completedRequired: 0,
-            isComplete: false,
-            days: days
-        )
+        return WidgetSnapshot(updatedAt: Date(), days: days, totalHabits: 0, completeHabits: 0)
     }
 }
 
@@ -77,7 +76,7 @@ struct HabitSquaresProvider: AppIntentTimelineProvider {
 struct HabitSquaresEntry: TimelineEntry {
     let date: Date
     let configuration: HabitWidgetConfigurationIntent
-    let payload: WidgetHabitTodayPayload
+    let snapshot: WidgetSnapshot
 }
 
 // MARK: - Widget
@@ -99,55 +98,6 @@ struct HabitSquaresWidget: Widget {
     }
 }
 
-// MARK: - View
-
-struct HabitSquaresWidgetView: View {
-    let entry: HabitSquaresEntry
-    @Environment(\.widgetFamily) private var family
-
-    var body: some View {
-        GeometryReader { proxy in
-            let outer = proxy.size
-
-            let inset: CGFloat = (family == .systemSmall) ? 12 : 14
-            let inner = CGSize(
-                width: max(1, outer.width - inset * 2),
-                height: max(1, outer.height - inset * 2)
-            )
-
-            let layout = WidgetGridLayout.pick(for: family, in: inner)
-
-            // days are expected oldest -> newest already, but sort just in case
-            let sortedDays = entry.payload.days.sorted { $0.dateKey < $1.dateKey }
-            let chosen = Array(sortedDays.suffix(layout.count))
-
-            let padded: [WidgetDay?] =
-                chosen.map { Optional($0) } +
-                Array(repeating: nil, count: max(0, layout.count - chosen.count))
-
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.fixed(layout.square), spacing: layout.spacing), count: layout.columns),
-                spacing: layout.spacing
-            ) {
-                ForEach(0..<layout.count, id: \.self) { i in
-                    if let day = padded[i] {
-                        RoundedRectangle(cornerRadius: layout.corner, style: .continuous)
-                            .fill(day.isComplete ? Color.green : Color.secondary.opacity(0.12))
-                            .frame(width: layout.square, height: layout.square)
-                    } else {
-                        RoundedRectangle(cornerRadius: layout.corner, style: .continuous)
-                            .fill(Color.secondary.opacity(0.06))
-                            .frame(width: layout.square, height: layout.square)
-                    }
-                }
-            }
-            .padding(inset)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        }
-        .containerBackground(.background, for: .widget)
-        .widgetURL(URL(string: "habitsquares://open?habit=\(entry.payload.habitID)"))
-    }
-}
 
 // MARK: - Layout
 
@@ -160,8 +110,8 @@ struct WidgetGridLayout {
     let corner: CGFloat
 
     static func pick(for family: WidgetFamily, in size: CGSize) -> WidgetGridLayout {
-        let spacing: CGFloat = 3
-        let corner: CGFloat = 3
+        let spacing: CGFloat = 2   // keep what you like
+        let corner: CGFloat = 2    // keep what you like
 
         func layout(count: Int, cols: Int, rows: Int) -> WidgetGridLayout {
             let totalWSpacing = spacing * CGFloat(max(cols - 1, 0))
@@ -185,13 +135,6 @@ struct WidgetGridLayout {
             return layout(count: 30, cols: 6, rows: 5)
         }
 
-        let l60 = layout(count: 60, cols: 10, rows: 6)
-        let l30 = layout(count: 30, cols: 6, rows: 5)
-
-        if l60.square >= max(6, l30.square * 0.80) {
-            return l60
-        } else {
-            return l30
-        }
-    }
-}
+        // Medium: 60-day, better aspect ratio for “wide but not tall” after the title
+        return layout(count: 60, cols: 15, rows: 4)
+    }}

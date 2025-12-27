@@ -10,7 +10,9 @@ import SwiftUI
 import Foundation
 
 // MARK: - Widget Cache Helpers
-private let appGroupID = "group.com.john.habitsquares" // Must match your App/Widget capabilities
+
+// ✅ Keep this consistent with your app + WidgetSharedStore.swift
+private let appGroupID = "group.pullerlabs.habitsquares"
 private let cacheFileName = "heatmap.json"
 
 private struct HeatmapCacheLocal: Codable {
@@ -71,15 +73,15 @@ private func sampleCounts(_ days: Int = 28) -> [Int] {
 
 struct Provider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), configuration: ConfigurationAppIntent(), counts: sampleCounts())
+        SimpleEntry(date: Date(), configuration: HabitWidgetConfigurationIntent(), counts: sampleCounts())
     }
 
-    func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
+    func snapshot(for configuration: HabitWidgetConfigurationIntent, in context: Context) async -> SimpleEntry {
         let counts = makeRecentCounts()
         return SimpleEntry(date: Date(), configuration: configuration, counts: counts.isEmpty ? sampleCounts() : counts)
     }
 
-    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
+    func timeline(for configuration: HabitWidgetConfigurationIntent, in context: Context) async -> Timeline<SimpleEntry> {
         var entries: [SimpleEntry] = []
 
         let currentDate = Date()
@@ -96,7 +98,7 @@ struct Provider: AppIntentTimelineProvider {
 
 struct SimpleEntry: TimelineEntry {
     let date: Date
-    let configuration: ConfigurationAppIntent
+    let configuration: HabitWidgetConfigurationIntent
     let counts: [Int] // grid counts for recent days (e.g., 28 cells)
 }
 
@@ -107,16 +109,31 @@ struct Habit_Tracker_WidgetEntryView: View {
 
     private let palette = HeatmapPalette()
 
+    private var habitTitle: String {
+        // HabitWidgetConfigurationIntent has: var habit: WidgetHabitEntity?
+        entry.configuration.habit?.name ?? "Select a Habit"
+    }
+
     private var columns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: 3), count: 7)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
+
+            // ✅ Title row
+            Text(habitTitle)
+                .font(.headline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            // Optional tiny time (keep or delete)
             HStack {
-                Text("Habits").font(.headline)
                 Spacer()
-                Text(entry.date, style: .time).font(.caption2).monospacedDigit()
+                Text(entry.date, style: .time)
+                    .font(.caption2)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
             }
 
             LazyVGrid(columns: columns, spacing: 3) {
@@ -129,28 +146,18 @@ struct Habit_Tracker_WidgetEntryView: View {
                         .accessibilityLabel("Day \(idx + 1), count \(count)")
                 }
             }
-
-            if !entry.configuration.favoriteEmoji.isEmpty {
-                HStack(spacing: 4) {
-                    Text("Fav:")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text(entry.configuration.favoriteEmoji)
-                }
-            }
         }
-        .padding(8)
-        .containerBackground(.background, for: .widget)    }
+        .padding(10)
+        .containerBackground(.background, for: .widget)
+    }
 
     /// Widget currently stores `count` per day in the cache.
     /// For now we map it to a simple progress model:
     /// - 0 => empty
     /// - 1 => partial (started)
     /// - 2+ => complete
-    ///
-    /// Later: switch this to `completedRequired/totalRequired` coming from your widget payload.
     private func squareFill(for count: Int) -> Color {
-        let base = Color.green // TODO: later pull from payload/habit
+        let base = Color.green // TODO: later pull from payload/habit color
 
         if count <= 0 {
             return palette.empty
@@ -158,7 +165,8 @@ struct Habit_Tracker_WidgetEntryView: View {
             // MVP parity: any progress means "green"
             return palette.color(base: base, isComplete: true, hasRow: true)
         }
-    }}
+    }
+}
 
 // MARK: - Widget
 
@@ -166,31 +174,18 @@ struct Habit_Tracker_Widget: Widget {
     let kind: String = "Habit_Tracker_Widget"
 
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
+        AppIntentConfiguration(kind: kind,
+                               intent: HabitWidgetConfigurationIntent.self,
+                               provider: Provider()) { entry in
             Habit_Tracker_WidgetEntryView(entry: entry)
         }
     }
 }
 
-// MARK: - Intent Defaults + Previews
-
-extension ConfigurationAppIntent {
-    fileprivate static var smiley: ConfigurationAppIntent {
-        let intent = ConfigurationAppIntent()
-        intent.favoriteEmoji = "😀"
-        return intent
-    }
-
-    fileprivate static var starEyes: ConfigurationAppIntent {
-        let intent = ConfigurationAppIntent()
-        intent.favoriteEmoji = "🤩"
-        return intent
-    }
-}
+// MARK: - Previews
 
 #Preview(as: .systemSmall) {
     Habit_Tracker_Widget()
 } timeline: {
-    SimpleEntry(date: .now, configuration: .smiley, counts: sampleCounts())
-    SimpleEntry(date: .now, configuration: .starEyes, counts: sampleCounts())
+    SimpleEntry(date: .now, configuration: HabitWidgetConfigurationIntent(), counts: sampleCounts())
 }
