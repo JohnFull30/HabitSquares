@@ -67,10 +67,15 @@ enum HabitCompletionEngine {
         var doneLegacyKeys = Set<String>()
 
         for r in reminders where r.isCompleted {
+            // ✅ Only count completions that happened today
+            guard let completedAt = r.completionDate,
+                  completedAt >= startOfDay,
+                  completedAt < endOfDay
+            else { continue }
+
             if let stamp = stampedUUID(from: r) {
                 doneStampUUIDs.insert(stamp)
             } else {
-                // Only collect legacy keys if no stamp exists (keeps counts sane)
                 if let ext = r.calendarItemExternalIdentifier, !ext.isEmpty {
                     doneLegacyKeys.insert(ext)
                 }

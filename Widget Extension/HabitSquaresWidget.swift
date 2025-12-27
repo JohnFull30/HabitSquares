@@ -110,13 +110,13 @@ struct WidgetGridLayout {
     let corner: CGFloat
 
     static func pick(for family: WidgetFamily, in size: CGSize) -> WidgetGridLayout {
-        let spacing: CGFloat = 2   // keep what you like
-        let corner: CGFloat = 2    // keep what you like
+        let spacing: CGFloat = 4   // keep what you like
+        let corner: CGFloat = 4   // keep what you like
 
         func layout(count: Int, cols: Int, rows: Int) -> WidgetGridLayout {
             let totalWSpacing = spacing * CGFloat(max(cols - 1, 0))
             let totalHSpacing = spacing * CGFloat(max(rows - 1, 0))
-
+  
             let squareW = (size.width - totalWSpacing) / CGFloat(cols)
             let squareH = (size.height - totalHSpacing) / CGFloat(rows)
             let square = floor(min(squareW, squareH))
