@@ -16,6 +16,7 @@ enum WidgetDataWriter {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
         let start = cal.date(byAdding: .day, value: -(dayCount - 1), to: today) ?? today
+        let endExclusive = cal.date(byAdding: .day, value: 1, to: today) ?? today
 
         // Date key formatter
         let fmt = DateFormatter()
@@ -34,8 +35,9 @@ enum WidgetDataWriter {
         let totalHabits = habits.count
 
         // Fetch completions in range
+        // ✅ IMPORTANT: end is < tomorrowStart (not <= todayStart)
         let completionReq = NSFetchRequest<NSManagedObject>(entityName: "HabitCompletion")
-        completionReq.predicate = NSPredicate(format: "date >= %@ AND date <= %@", start as NSDate, today as NSDate)
+        completionReq.predicate = NSPredicate(format: "date >= %@ AND date < %@", start as NSDate, endExclusive as NSDate)
         let completions = (try? context.fetch(completionReq)) ?? []
 
         // Map: habitID -> (dateKey -> isComplete)

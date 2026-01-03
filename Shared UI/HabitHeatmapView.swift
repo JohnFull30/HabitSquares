@@ -21,30 +21,35 @@ struct HabitHeatmapView: View {
     private let squareCorner: CGFloat = 3
     private let squareSpacing: CGFloat = 3
 
-    private let cal = Calendar.current
+    private let cal = Calendar.autoupdatingCurrent
     private let palette = HeatmapPalette()
 
+    /// Keyed by `startOfDay` date.
     @State private var completionByDay: [Date: HabitCompletion] = [:]
 
-    // MARK: - Derived
+    // MARK: - Grid
 
     private var gridColumns: [GridItem] {
         Array(repeating: GridItem(.fixed(squareSize), spacing: squareSpacing), count: columns)
     }
 
-    /// Oldest -> newest so newest lands bottom-right in a row-major LazyVGrid.
-    private var days: [Date] {
-        let today = cal.startOfDay(for: Date())
-        let start = cal.date(byAdding: .day, value: -(dayCount - 1), to: today)!
-        return (0..<dayCount).compactMap { cal.date(byAdding: .day, value: $0, to: start) }
+    private func dayKey(_ date: Date) -> Date {
+        cal.startOfDay(for: date)
+    }
+
+    /// idx: 0...dayCount-1 (oldest -> newest)
+    private func dateForIndex(_ idx: Int) -> Date {
+        let today = dayKey(.now)
+        let offset = (dayCount - 1) - idx
+        return cal.date(byAdding: .day, value: -offset, to: today)!
     }
 
     private var rangeStart: Date {
-        days.first ?? cal.startOfDay(for: Date())
+        dayKey(dateForIndex(0))
     }
 
-    private var todayStart: Date {
-        cal.startOfDay(for: Date())
+    private var tomorrowStart: Date {
+        cal.date(byAdding: .day, value: 1, to: dayKey(.now))!
     }
 
     // MARK: - Body
@@ -62,7 +67,8 @@ struct HabitHeatmapView: View {
 
             // Grid
             LazyVGrid(columns: gridColumns, spacing: squareSpacing) {
-                ForEach(days, id: \.self) { date in
+                ForEach(0..<dayCount, id: \.self) { idx in
+                    let date = dateForIndex(idx)
                     square(for: date)
                 }
             }
@@ -76,10 +82,10 @@ struct HabitHeatmapView: View {
     // MARK: - Square rendering
 
     private func square(for date: Date) -> some View {
-        let key = cal.startOfDay(for: date)
+        let key = dayKey(date)
         let completion = completionByDay[key]
 
-        // TODO: replace with per-habit color (e.g., habit.uiColor) when you add it.
+        // TODO: replace with per-habit color when you add it (e.g., habit.colorHex -> Color)
         let base = Color.green
 
         let fill = palette.color(
@@ -112,25 +118,33 @@ struct HabitHeatmapView: View {
     private func loadCompletions() {
         let req = NSFetchRequest<HabitCompletion>(entityName: "HabitCompletion")
 
-        // Assumes HabitCompletion has a relationship key named "habit" and attribute "date".
+        // ✅ Correct rolling window:
+        // - include everything from oldestDay
+        // - include today
+        // - exclude tomorrow (endExclusive)
         req.predicate = NSPredicate(
-            format: "habit == %@ AND date >= %@ AND date <= %@",
+            format: "habit == %@ AND date >= %@ AND date < %@",
             habit,
             rangeStart as NSDate,
-            todayStart as NSDate
+            tomorrowStart as NSDate
         )
 
         do {
             let results = try viewContext.fetch(req)
+
             var dict: [Date: HabitCompletion] = [:]
+            dict.reserveCapacity(results.count)
+
             for c in results {
                 if let d = c.date {
-                    dict[cal.startOfDay(for: d)] = c
+                    dict[dayKey(d)] = c
                 }
             }
+
             completionByDay = dict
         } catch {
             print("HabitHeatmapView: loadCompletions failed: \(error)")
         }
     }
 }
+

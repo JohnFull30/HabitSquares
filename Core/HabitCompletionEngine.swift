@@ -22,6 +22,7 @@ enum HabitCompletionEngine {
             }
         }
     }
+
     // MARK: Public API (History)
 
     static func syncLast365DaysFromReminders(in context: NSManagedObjectContext) {
@@ -51,14 +52,16 @@ enum HabitCompletionEngine {
             }
         }
     }
+
     // MARK: Core compute / upsert
 
     @MainActor
     static func upsertCompletionsForToday(in context: NSManagedObjectContext,
                                          reminders: [EKReminder]) {
 
-        let startOfDay = Calendar.current.startOfDay(for: Date())
-        let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
+        let cal = Calendar.current
+        let startOfDay = cal.startOfDay(for: Date())
+        let endOfDay = cal.date(byAdding: .day, value: 1, to: startOfDay)!
 
         // ✅ Clean key sets
         // Primary: stamped UUIDs (what we want long-term)
@@ -83,25 +86,13 @@ enum HabitCompletionEngine {
             }
         }
 
-        let doneKeysForMatching = doneStampUUIDs.union(doneLegacyKeys)
-
-        if let sample = doneStampUUIDs.first {
-            print("✓ HabitCompletionEngine: sample stamped done uuid = \(sample)")
-        } else if let sampleLegacy = doneLegacyKeys.first {
-            print("✓ HabitCompletionEngine: sample legacy done key = \(sampleLegacy)")
-        }
-
-        print("✓ HabitCompletionEngine: completedStampUUIDs.count = \(doneStampUUIDs.count)")
-        print("✓ HabitCompletionEngine: completedLegacyKeys.count = \(doneLegacyKeys.count)")
-
-        // Fetch habits
         let habits = fetchHabits(in: context)
 
-        // Detect link entity name + relationship key from Link -> Habit
         guard let linkEntityName = guessLinkEntityName(in: context) else {
-            print("✗ HabitCompletionEngine: could not guess link entity name (check Core Data model)")
+            print("✗ HabitCompletionEngine: could not guess link entity name")
             return
         }
+
         guard let linkToHabitKey = findRelationshipKey(entityName: linkEntityName,
                                                       destinationEntityName: "Habit",
                                                       in: context) else {
@@ -118,24 +109,20 @@ enum HabitCompletionEngine {
                                            in: context)
 
             var requiredDone = 0
-            for link in requiredLinks {
-                // Normalize stored keys so older "stamp:UUID" still matches "UUID"
-                let linkKeys = linkStoredKeys(link).map(normalizeStoredKey)
-                let matched = !Set(linkKeys).intersection(doneKeysForMatching).isEmpty
-                if matched { requiredDone += 1 }
 
-                if let anyKey = linkKeys.first {
-                    print("🔗 required link key=\(anyKey) matchedDone=\(matched)")
-                } else {
-                    print("🔗 required link key=<none> matchedDone=\(matched)")
-                }
+            for link in requiredLinks {
+                let storedKeys = linkStoredKeys(link).map(normalizeStoredKey)
+
+                // Prefer stamps when present, fallback to legacy
+                let hasMatch =
+                    storedKeys.contains(where: { doneStampUUIDs.contains($0) }) ||
+                    storedKeys.contains(where: { doneLegacyKeys.contains($0) })
+
+                if hasMatch { requiredDone += 1 }
             }
 
             let requiredTotal = requiredLinks.count
             let isComplete = (requiredTotal > 0) && (requiredDone == requiredTotal)
-
-            let habitName = (habit.valueIfExists(forKey: "name") as? String) ?? "?"
-            print("📊 HabitCompletionEngine: habit '\(habitName)' required: \(requiredTotal) done today: \(requiredDone) isComplete: \(isComplete)")
 
             upsertHabitCompletion(habit: habit,
                                   startOfDay: startOfDay,
@@ -148,8 +135,11 @@ enum HabitCompletionEngine {
 
         do {
             try context.save()
-            
-            WidgetDataWriter.writeSnapshot(in: context);       WidgetCenter.shared.reloadTimelines(ofKind: "HabitSquaresWidget")
+
+            // ✅ Update widget cache + reload timeline immediately
+            WidgetDataWriter.writeSnapshot(in: context)
+            WidgetCenter.shared.reloadTimelines(ofKind: "HabitSquaresWidget")
+
             print("✓ HabitCompletionEngine: saved completions for today.")
         } catch {
             print("✗ HabitCompletionEngine: failed saving completions: \(error)")
@@ -158,19 +148,20 @@ enum HabitCompletionEngine {
 
     // MARK: - Key helpers
 
-    /// Extract our stamp: habitsquares://reminder-link/<uuid>
-    private static func stampedUUID(from reminder: EKReminder) -> String? {
-        guard let url = reminder.url else { return nil }
-        guard url.scheme?.lowercased() == "habitsquares" else { return nil }
-        guard url.host?.lowercased() == "reminder-link" else { return nil }
-
-        let raw = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return raw.isEmpty ? nil : raw
+    /// Read our stamped UUID (if your app stamps it) from an EKReminder.
+    /// Adjust this if your project stores it differently.
+    private static func stampedUUID(from r: EKReminder) -> String? {
+        // If you already have a canonical key, keep it.
+        // Common pattern: store under a custom key in `notes` or `url`.
+        if let url = r.url?.absoluteString, url.hasPrefix("habitsquares://stamp/") {
+            return url.replacingOccurrences(of: "habitsquares://stamp/", with: "")
+        }
+        return nil
     }
 
-    /// Normalize any legacy-prefixed stored keys like "stamp:<uuid>", "ext:<id>", "id:<id>"
+    /// Normalize keys stored in Core Data links so they match what we store in `doneKeys` buckets.
     private static func normalizeStoredKey(_ key: String) -> String {
-        // Only strip known prefixes
+        // Support prefixed storage formats (if you used them earlier)
         if key.hasPrefix("stamp:") { return String(key.dropFirst("stamp:".count)) }
         if key.hasPrefix("ext:") { return String(key.dropFirst("ext:".count)) }
         if key.hasPrefix("id:") { return String(key.dropFirst("id:".count)) }
@@ -214,12 +205,14 @@ enum HabitCompletionEngine {
             completion = existing
         } else {
             completion = NSEntityDescription.insertNewObject(forEntityName: completionEntity, into: context)
-            completion.setIfExistsDate(startOfDay, forKey: "date")
 
             if let k = completionToHabitKey {
                 completion.setIfExistsObject(habit, forKey: k)
             }
         }
+
+        // ✅ Normalize stored date every time (prevents time-component drift)
+        completion.setIfExistsDate(startOfDay, forKey: "date")
 
         completion.setIfExistsInt(requiredTotal, forKey: "totalRequired")
         completion.setIfExistsInt(requiredDone, forKey: "completedRequired")
@@ -243,7 +236,6 @@ enum HabitCompletionEngine {
                                    linkToHabitKey: String,
                                    requiredOnly: Bool,
                                    in context: NSManagedObjectContext) -> [NSManagedObject] {
-
         let req = NSFetchRequest<NSManagedObject>(entityName: linkEntityName)
 
         var preds: [NSPredicate] = [
@@ -267,26 +259,34 @@ enum HabitCompletionEngine {
     private static func linkStoredKeys(_ link: NSManagedObject) -> [String] {
         var keys: [String] = []
         let candidates = [
+            "stampedUUID",
+            "stampUUID",
+            "stamp",
+            "reminderExternalIdentifier",
+            "calendarItemExternalIdentifier",
             "reminderIdentifier",
-            "reminderId",
-            "reminderID",
             "calendarItemIdentifier",
-            "calendarItemExternalIdentifier"
+            "reminderId"
         ]
 
-        for c in candidates {
-            if let s = link.valueIfExists(forKey: c) as? String, !s.isEmpty {
-                keys.append(s)
+        for k in candidates {
+            if let v = link.valueIfExists(forKey: k) as? String, !v.isEmpty {
+                keys.append(v)
             }
         }
-        return keys
+
+        // Dedup while preserving order
+        var seen = Set<String>()
+        return keys.filter { seen.insert($0).inserted }
     }
 
-    // MARK: Model introspection
+    // MARK: - Model introspection
 
-    private static func findRelationshipKey(entityName: String,
-                                           destinationEntityName: String,
-                                           in context: NSManagedObjectContext) -> String? {
+    private static func findRelationshipKey(
+        entityName: String,
+        destinationEntityName: String,
+        in context: NSManagedObjectContext
+    ) -> String? {
         guard let model = context.persistentStoreCoordinator?.managedObjectModel else { return nil }
         guard let entity = model.entitiesByName[entityName] else { return nil }
 
@@ -295,13 +295,20 @@ enum HabitCompletionEngine {
                 return name
             }
         }
+
         return nil
     }
 
     private static func guessLinkEntityName(in context: NSManagedObjectContext) -> String? {
         guard let model = context.persistentStoreCoordinator?.managedObjectModel else { return nil }
 
-        let common = ["ReminderLink", "ReminderLinkEntity", "HabitReminderLink", "HabitLink", "ReminderLinkModel"]
+        let common = [
+            "HabitReminderLink",
+            "HabitReminderLinks",
+            "ReminderLink",
+            "ReminderLinks"
+        ]
+
         for name in common {
             if model.entitiesByName[name] != nil { return name }
         }
@@ -323,6 +330,7 @@ enum HabitCompletionEngine {
 
         return nil
     }
+
     // MARK: - Window upsert
 
     @MainActor
@@ -350,7 +358,7 @@ enum HabitCompletionEngine {
         let last = cal.startOfDay(for: endDayInclusive)
 
         while day <= last {
-            let nextDay = cal.date(byAdding: .day, value: 1, to: day) ?? day.addingTimeInterval(86400)
+            let nextDay = cal.date(byAdding: .day, value: 1, to: day)!
             let doneKeysForDay = doneKeysByDay[day] ?? []
 
             for habit in habits {
@@ -370,7 +378,6 @@ enum HabitCompletionEngine {
                 let requiredTotal = requiredLinks.count
                 let isComplete = (requiredTotal > 0) && (requiredDone == requiredTotal)
 
-                // Reuse your existing upsert that takes a start/end day window
                 upsertHabitCompletion(habit: habit,
                                       startOfDay: day,
                                       endOfDay: nextDay,
@@ -385,6 +392,11 @@ enum HabitCompletionEngine {
 
         do {
             try context.save()
+
+            // ✅ Refresh widget cache after backfill too
+            WidgetDataWriter.writeSnapshot(dayCount: 60, in: context)
+            WidgetCenter.shared.reloadTimelines(ofKind: "HabitSquaresWidget")
+
             print("✓ HabitCompletionEngine: saved completions for 365-day window.")
         } catch {
             print("✗ HabitCompletionEngine: failed saving 365-day window: \(error)")
@@ -410,7 +422,6 @@ enum HabitCompletionEngine {
             guard let completionDate = r.completionDate else { continue }
             let day = cal.startOfDay(for: completionDate)
 
-            // ✅ Use your same “stamp first, else legacy keys” strategy
             if let stamp = stampedUUID(from: r) {
                 bucket[day, default: []].insert(stamp)
             } else {
@@ -433,12 +444,12 @@ enum HabitCompletionEngine {
         }
     }
 
-    // MARK: - Permissions (iOS 17+)
+    // MARK: - Reminders access
 
     private static func requestRemindersAccessIfNeeded(store: EKEventStore) async -> Bool {
         let status = EKEventStore.authorizationStatus(for: .reminder)
         switch status {
-        case .authorized, .fullAccess:
+        case .authorized:
             return true
         case .denied, .restricted:
             return false
@@ -459,24 +470,20 @@ enum HabitCompletionEngine {
 // MARK: - NSManagedObject helpers (safe KVC)
 
 private extension NSManagedObject {
-    func setIfExistsBool(_ value: Bool, forKey key: String) {
-        guard entity.attributesByName[key] != nil else { return }
-        setValue(value, forKey: key)
+    func setIfExistsInt(_ value: Int, forKey key: String) {
+        if entity.attributesByName[key] != nil { setValue(value, forKey: key) }
     }
 
-    func setIfExistsInt(_ value: Int, forKey key: String) {
-        guard entity.attributesByName[key] != nil else { return }
-        setValue(value, forKey: key)
+    func setIfExistsBool(_ value: Bool, forKey key: String) {
+        if entity.attributesByName[key] != nil { setValue(value, forKey: key) }
     }
 
     func setIfExistsDate(_ value: Date, forKey key: String) {
-        guard entity.attributesByName[key] != nil else { return }
-        setValue(value, forKey: key)
+        if entity.attributesByName[key] != nil { setValue(value, forKey: key) }
     }
 
     func setIfExistsObject(_ value: Any?, forKey key: String) {
-        guard entity.relationshipsByName[key] != nil else { return }
-        setValue(value, forKey: key)
+        if entity.relationshipsByName[key] != nil { setValue(value, forKey: key) }
     }
 
     func valueIfExists(forKey key: String) -> Any? {
