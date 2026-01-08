@@ -26,11 +26,12 @@ struct HabitSquaresProvider: AppIntentTimelineProvider {
         let snap = loadSnapshot(for: configuration)
         let entry = HabitSquaresEntry(date: .now, configuration: configuration, snapshot: snap)
 
-        let next = Calendar.current.date(byAdding: .minute, value: 30, to: .now) ?? .now.addingTimeInterval(1800)
+        // Conservative refresh cadence; you also manually trigger reloads from the app.
+        let next = Calendar.current.date(byAdding: .minute, value: 15, to: .now) ?? .now.addingTimeInterval(15 * 60)
         return Timeline(entries: [entry], policy: .after(next))
     }
 
-    // MARK: - Snapshot loader
+    // MARK: Snapshot loader
 
     private func loadSnapshot(for configuration: HabitWidgetConfigurationIntent) -> WidgetSnapshot {
 
@@ -40,34 +41,19 @@ struct HabitSquaresProvider: AppIntentTimelineProvider {
 
             return WidgetSnapshot(
                 updatedAt: payload.updatedAt,
-                days: payload.days,
+                days: payload.days, // expected oldest->newest
                 totalHabits: 1,
                 completeHabits: payload.isComplete ? 1 : 0
             )
         }
 
-        // Otherwise fall back to overall snapshot cache (or a placeholder)
+        // Otherwise fall back to overall snapshot cache (if you still write it)
         if let snap = WidgetSharedStore.readSnapshot() {
             return snap
         }
 
-        // Basic placeholder
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        let start = cal.date(byAdding: .day, value: -59, to: today) ?? today
-
-        let fmt = DateFormatter()
-        fmt.calendar = cal
-        fmt.locale = .current
-        fmt.timeZone = .current
-        fmt.dateFormat = "yyyy-MM-dd"
-
-        let days = (0..<60).map { i -> WidgetDay in
-            let d = cal.date(byAdding: .day, value: i, to: start) ?? start
-            return WidgetDay(dateKey: fmt.string(from: d), isComplete: false)
-        }
-
-        return WidgetSnapshot(updatedAt: Date(), days: days, totalHabits: 0, completeHabits: 0)
+        // Final fallback: all-gray placeholder
+        return WidgetSnapshotStore.placeholder(dayCount: 60)
     }
 }
 
@@ -90,14 +76,28 @@ struct HabitSquaresWidget: Widget {
             intent: HabitWidgetConfigurationIntent.self,
             provider: HabitSquaresProvider()
         ) { entry in
-            HabitSquaresWidgetView(entry: entry)
+            ZStack {
+                HabitSquaresWidgetView(entry: entry)
+
+                #if DEBUG
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Text(entry.snapshot.updatedAt, style: .time)
+                            .font(.caption2)
+                            .opacity(0.6)
+                    }
+                }
+                .padding(4)
+                #endif
+            }
         }
         .configurationDisplayName("HabitSquares")
         .description("Your recent completions at a glance.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
-
 
 // MARK: - Layout
 
@@ -110,16 +110,18 @@ struct WidgetGridLayout {
     let corner: CGFloat
 
     static func pick(for family: WidgetFamily, in size: CGSize) -> WidgetGridLayout {
-        let spacing: CGFloat = 4   // keep what you like
-        let corner: CGFloat = 4   // keep what you like
+
+        // Keep your preferred spacing/rounding
+        let spacing: CGFloat = 4
+        let corner: CGFloat = 4
 
         func layout(count: Int, cols: Int, rows: Int) -> WidgetGridLayout {
             let totalWSpacing = spacing * CGFloat(max(cols - 1, 0))
             let totalHSpacing = spacing * CGFloat(max(rows - 1, 0))
-  
-            let squareW = (size.width - totalWSpacing) / CGFloat(cols)
-            let squareH = (size.height - totalHSpacing) / CGFloat(rows)
-            let square = floor(min(squareW, squareH))
+
+            let sqW = (size.width - totalWSpacing) / CGFloat(cols)
+            let sqH = (size.height - totalHSpacing) / CGFloat(rows)
+            let square = floor(min(sqW, sqH))
 
             return WidgetGridLayout(
                 count: count,
@@ -132,9 +134,11 @@ struct WidgetGridLayout {
         }
 
         if family == .systemSmall {
+            // 30-day grid
             return layout(count: 30, cols: 6, rows: 5)
+        } else {
+            // 60-day grid
+            return layout(count: 60, cols: 15, rows: 4)
         }
-
-        // Medium: 60-day, better aspect ratio for “wide but not tall” after the title
-        return layout(count: 60, cols: 15, rows: 4)
-    }}
+    }
+}

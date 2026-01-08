@@ -31,6 +31,12 @@ struct HabitDetailView: View {
                     Label("Add Reminders", systemImage: "plus")
                 }
             }
+            
+#if DEBUG
+Section("Developer") {
+    DebugHabitToolsSection(habit: habit)
+}
+#endif
         }
         .navigationTitle(habit.name ?? "Habit")
         .navigationBarTitleDisplayMode(.inline)

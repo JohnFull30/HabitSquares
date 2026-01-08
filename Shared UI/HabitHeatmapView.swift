@@ -6,6 +6,10 @@
 import SwiftUI
 import CoreData
 
+#if DEBUG
+import WidgetKit
+#endif
+
 /// 30-day mini heatmap used inside the habit cards.
 /// Layout: 5 rows × 6 columns (30 days). Newest day ends bottom-right.
 struct HabitHeatmapView: View {
@@ -56,7 +60,6 @@ struct HabitHeatmapView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Header
             Text(habit.name ?? "Habit")
                 .font(.headline)
                 .lineLimit(1)
@@ -65,7 +68,6 @@ struct HabitHeatmapView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            // Grid
             LazyVGrid(columns: gridColumns, spacing: squareSpacing) {
                 ForEach(0..<dayCount, id: \.self) { idx in
                     let date = dateForIndex(idx)
@@ -85,7 +87,7 @@ struct HabitHeatmapView: View {
         let key = dayKey(date)
         let completion = completionByDay[key]
 
-        // TODO: replace with per-habit color when you add it (e.g., habit.colorHex -> Color)
+        // TODO: replace with per-habit color when you add it (habit color -> base)
         let base = Color.green
 
         let fill = palette.color(
@@ -117,11 +119,6 @@ struct HabitHeatmapView: View {
 
     private func loadCompletions() {
         let req = NSFetchRequest<HabitCompletion>(entityName: "HabitCompletion")
-
-        // ✅ Correct rolling window:
-        // - include everything from oldestDay
-        // - include today
-        // - exclude tomorrow (endExclusive)
         req.predicate = NSPredicate(
             format: "habit == %@ AND date >= %@ AND date < %@",
             habit,
@@ -147,4 +144,3 @@ struct HabitHeatmapView: View {
         }
     }
 }
-

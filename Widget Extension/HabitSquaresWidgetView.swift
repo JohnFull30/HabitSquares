@@ -15,7 +15,7 @@ struct HabitSquaresWidgetView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
 
             Text(titleText)
                 .font(.headline)
@@ -25,6 +25,7 @@ struct HabitSquaresWidgetView: View {
             GeometryReader { proxy in
                 let outer = proxy.size
 
+                // Inner box after padding
                 let inset: CGFloat = (family == .systemSmall) ? 6 : 5
                 let inner = CGSize(
                     width: max(1, outer.width - inset * 2),
@@ -33,16 +34,19 @@ struct HabitSquaresWidgetView: View {
 
                 let layout = WidgetGridLayout.pick(for: family, in: inner)
 
-                // ✅ snapshot (not payload)
-                let sortedDays = entry.snapshot.days.sorted { $0.dateKey < $1.dateKey }
-                let chosen = Array(sortedDays.suffix(layout.count))
+                // Ensure chronological order (oldest -> newest)
+                let sorted = entry.snapshot.days.sorted { $0.dateKey < $1.dateKey }
+                let chosen = Array(sorted.suffix(layout.count)) // still oldest->newest
 
-                let padded: [WidgetDay?] =
-                    chosen.map { Optional($0) } +
-                    Array(repeating: nil, count: max(0, layout.count - chosen.count))
+                // LEFT-pad so newest lands bottom-right
+                let padCount = max(0, layout.count - chosen.count)
+                let padded: [WidgetDay?] = Array(repeating: nil, count: padCount) + chosen.map(Optional.some)
 
                 LazyVGrid(
-                    columns: Array(repeating: GridItem(.fixed(layout.square), spacing: layout.spacing), count: layout.columns),
+                    columns: Array(
+                        repeating: GridItem(.fixed(layout.square), spacing: layout.spacing),
+                        count: layout.columns
+                    ),
                     spacing: layout.spacing
                 ) {
                     ForEach(0..<layout.count, id: \.self) { i in
@@ -58,7 +62,6 @@ struct HabitSquaresWidgetView: View {
                     }
                 }
                 .padding(inset)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
         }
         .padding(6)

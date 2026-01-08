@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		52302D962F0EA8A80069311F /* DebugHabitToolsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52302D952F0EA8A80069311F /* DebugHabitToolsSection.swift */; };
 		523CBE282ED01E0000455486 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 523CBE272ED01E0000455486 /* WidgetKit.framework */; };
 		523CBE2A2ED01E0000455486 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 523CBE292ED01E0000455486 /* SwiftUI.framework */; };
 		523CBE3B2ED01E0000455486 /* Habit Tracker WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 523CBE252ED01E0000455486 /* Habit Tracker WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -87,6 +88,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		52302D952F0EA8A80069311F /* DebugHabitToolsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugHabitToolsSection.swift; sourceTree = "<group>"; };
 		523CBDE92ED010A900455486 /* Habit Tracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Habit Tracker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		523CBDFD2ED010AA00455486 /* Habit TrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Habit TrackerTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		523CBE072ED010AA00455486 /* Habit TrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Habit TrackerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -253,6 +255,7 @@
 		52D1D73C2EFB534B00B3F91A /* App */ = {
 			isa = PBXGroup;
 			children = (
+				52302D952F0EA8A80069311F /* DebugHabitToolsSection.swift */,
 				52D1D6F92EFB0E5C00B3F91A /* Habit_TrackerApp.swift */,
 				52D1D6F72EFB0E5C00B3F91A /* ContentView.swift */,
 				52D1D6F82EFB0E5C00B3F91A /* Habit_Tracker.entitlements */,
@@ -502,6 +505,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				52302D962F0EA8A80069311F /* DebugHabitToolsSection.swift in Sources */,
 				52D1D7332EFB16E100B3F91A /* WidgetDay.swift in Sources */,
 				52D1D70A2EFB0E5C00B3F91A /* AddHabitView.swift in Sources */,
 				52D1D70B2EFB0E5C00B3F91A /* AddRemindersSheet.swift in Sources */,

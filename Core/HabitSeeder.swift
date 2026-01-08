@@ -30,6 +30,56 @@ struct HabitSeeder {
         }
     }
     
+    // MARK: - Debug seeding (Completions)
+
+    /// Seeds `HabitCompletion` rows for the last `dayCount` days (including today) for a single habit.
+    /// This is a DEV helper so your widget + in-app heatmap can be forced into a known state.
+    static func seedCompletions(dayCount: Int,
+                                for habit: Habit,
+                                in context: NSManagedObjectContext,
+                                markComplete: Bool = true) {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let start = cal.date(byAdding: .day, value: -(dayCount - 1), to: today) ?? today
+        let endExclusive = cal.date(byAdding: .day, value: 1, to: today) ?? today
+
+        // 1) Delete existing completions in the range for this habit (so the seed is deterministic)
+        let fetch = NSFetchRequest<NSManagedObject>(entityName: "HabitCompletion")
+        fetch.predicate = NSPredicate(format: "habit == %@ AND date >= %@ AND date < %@",
+                                      habit, start as NSDate, endExclusive as NSDate)
+
+        if let existing = try? context.fetch(fetch) {
+            existing.forEach { context.delete($0) }
+        }
+
+        // 2) Insert new completions (one per day)
+        for offset in 0..<dayCount {
+            let date = cal.date(byAdding: .day, value: offset, to: start) ?? start
+            let d0 = cal.startOfDay(for: date)
+
+            let obj = NSEntityDescription.insertNewObject(forEntityName: "HabitCompletion", into: context)
+
+            // Keys match your Core Data model (use KVC to avoid needing generated subclasses)
+            obj.setValue(d0, forKey: "date")
+
+            let totalRequired: Int32 = 1
+            obj.setValue(totalRequired, forKey: "totalRequired")
+            obj.setValue(markComplete ? totalRequired : 0, forKey: "completedRequired")
+            obj.setValue(markComplete, forKey: "isComplete")
+            obj.setValue("seed", forKey: "source")
+
+            // relationship
+            obj.setValue(habit, forKey: "habit")
+        }
+
+        do {
+            try context.save()
+            print("✅ HabitSeeder.seedCompletions: seeded \(dayCount) days for \(habit.name ?? "Habit")")
+        } catch {
+            print("❌ HabitSeeder.seedCompletions: save failed:", error)
+        }
+    }
+    
     /// Backwards-compatible helper for the old “Code” habit.
     static func ensureCodeReminderLink(
         in context: NSManagedObjectContext,

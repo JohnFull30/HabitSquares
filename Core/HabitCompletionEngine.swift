@@ -138,7 +138,7 @@ enum HabitCompletionEngine {
 
             // ✅ Update widget cache + reload timeline immediately
             WidgetDataWriter.writeSnapshot(in: context)
-            WidgetCenter.shared.reloadTimelines(ofKind: "HabitSquaresWidget")
+            WidgetCenter.shared.reloadAllTimelines()
 
             print("✓ HabitCompletionEngine: saved completions for today.")
         } catch {
@@ -395,7 +395,7 @@ enum HabitCompletionEngine {
 
             // ✅ Refresh widget cache after backfill too
             WidgetDataWriter.writeSnapshot(dayCount: 60, in: context)
-            WidgetCenter.shared.reloadTimelines(ofKind: "HabitSquaresWidget")
+            WidgetCenter.shared.reloadAllTimelines()
 
             print("✓ HabitCompletionEngine: saved completions for 365-day window.")
         } catch {
