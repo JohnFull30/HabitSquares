@@ -14,6 +14,7 @@
 		524461ED2EFF36A400537C6C /* HeatmapPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524461EC2EFF36A400537C6C /* HeatmapPalette.swift */; };
 		524461F02EFF3C7F00537C6C /* HeatmapPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524461EC2EFF36A400537C6C /* HeatmapPalette.swift */; };
 		524461F22EFF575300537C6C /* HabitSquaresWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524461F12EFF575300537C6C /* HabitSquaresWidgetView.swift */; };
+		525290BB2F1848AF00ED07F6 /* EditHabitSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 525290BA2F1848AE00ED07F6 /* EditHabitSheet.swift */; };
 		527137E42EFDFC78001507E8 /* WidgetCacheWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E32EFDFC78001507E8 /* WidgetCacheWriter.swift */; };
 		527137E72EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E62EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift */; };
 		527137E92EFE0E4F001507E8 /* WidgetHabitEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E82EFE0E4F001507E8 /* WidgetHabitEntity.swift */; };
@@ -98,6 +99,7 @@
 		523CBE442ED01F9000455486 /* Habit Tracker WidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Habit Tracker WidgetExtension.entitlements"; sourceTree = "<group>"; };
 		524461EC2EFF36A400537C6C /* HeatmapPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapPalette.swift; sourceTree = "<group>"; };
 		524461F12EFF575300537C6C /* HabitSquaresWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitSquaresWidgetView.swift; sourceTree = "<group>"; };
+		525290BA2F1848AE00ED07F6 /* EditHabitSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditHabitSheet.swift; sourceTree = "<group>"; };
 		527137E32EFDFC78001507E8 /* WidgetCacheWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetCacheWriter.swift; sourceTree = "<group>"; };
 		527137E62EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitWidgetConfigurationIntent.swift; sourceTree = "<group>"; };
 		527137E82EFE0E4F001507E8 /* WidgetHabitEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHabitEntity.swift; sourceTree = "<group>"; };
@@ -264,6 +266,7 @@
 		52D1D73C2EFB534B00B3F91A /* App */ = {
 			isa = PBXGroup;
 			children = (
+				525290BA2F1848AE00ED07F6 /* EditHabitSheet.swift */,
 				52302D952F0EA8A80069311F /* DebugHabitToolsSection.swift */,
 				52D1D6F92EFB0E5C00B3F91A /* Habit_TrackerApp.swift */,
 				52D1D6F72EFB0E5C00B3F91A /* ContentView.swift */,
@@ -523,6 +526,7 @@
 				52D1D70E2EFB0E5C00B3F91A /* Habit_TrackerApp.swift in Sources */,
 				52D1D70F2EFB0E5C00B3F91A /* HabitCardStyle.swift in Sources */,
 				52D1D7102EFB0E5C00B3F91A /* HabitCompletionEngine.swift in Sources */,
+				525290BB2F1848AF00ED07F6 /* EditHabitSheet.swift in Sources */,
 				52D1D74A2EFB625500B3F91A /* HabitID.swift in Sources */,
 				52D1D7112EFB0E5C00B3F91A /* HabitDetailView.swift in Sources */,
 				52D1D7122EFB0E5C00B3F91A /* HabitHeatmapView.swift in Sources */,

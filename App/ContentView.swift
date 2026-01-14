@@ -35,6 +35,7 @@ struct ContentView: View {
     private enum ActiveSheet: Identifiable {
         case addHabit
         case reminders(Habit)
+        case editName(Habit)
 
         // Unique ID so SwiftUI can distinguish sheets
         var id: String {
@@ -44,6 +45,8 @@ struct ContentView: View {
             case .reminders(let habit):
                 // Use the Core Data objectID URI for uniqueness
                 return "reminders-\(habit.objectID.uriRepresentation().absoluteString)"
+            case .editName(let habit):
+                return "editName-\(habit.objectID.uriRepresentation().absoluteString)"
             }
         }
     }
@@ -109,9 +112,9 @@ struct ContentView: View {
                                         .contentShape(Rectangle())
                                         .contextMenu {
                                             Button {
-                                                activeSheet = .reminders(habit)
+                                                activeSheet = .editName(habit)
                                             } label: {
-                                                Label("Link Reminders", systemImage: "link")
+                                                Label("Edit Habit Name", systemImage: "pencil")
                                             }
 
                                             Button(role: .destructive) {
@@ -173,6 +176,11 @@ struct ContentView: View {
                 case .reminders(let habit):
                     ReminderListView(habit: habit)
                         .environment(\.managedObjectContext, viewContext)
+                    
+                case .editName(let habit):
+                    EditHabitSheet(habit: habit)
+                        .environment(\.managedObjectContext, viewContext)
+                    
                 }
             }
 
