@@ -137,8 +137,16 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				WidgetRefresh.swift,
 			);
 			target = 523CBE242ED01E0000455486 /* Habit Tracker WidgetExtension */;
+		};
+		525290B92F18411D00ED07F6 /* Exceptions for "Habit Tracker Widget" folder in "Habit Tracker" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				WidgetRefresh.swift,
+			);
+			target = 523CBDE82ED010A900455486 /* Habit Tracker */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -161,6 +169,7 @@
 		523CBE2B2ED01E0000455486 /* Habit Tracker Widget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				525290B92F18411D00ED07F6 /* Exceptions for "Habit Tracker Widget" folder in "Habit Tracker" target */,
 				523CBE3F2ED01E0000455486 /* Exceptions for "Habit Tracker Widget" folder in "Habit Tracker WidgetExtension" target */,
 			);
 			path = "Habit Tracker Widget";

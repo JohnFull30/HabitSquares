@@ -135,16 +135,16 @@ enum HabitCompletionEngine {
 
         do {
             try context.save()
+            WidgetRefresh.push(context)
 
-            // ✅ Update widget cache + reload timeline immediately
-            WidgetDataWriter.writeSnapshot(in: context)
-            WidgetCenter.shared.reloadAllTimelines()
 
             print("✓ HabitCompletionEngine: saved completions for today.")
         } catch {
             print("✗ HabitCompletionEngine: failed saving completions: \(error)")
         }
     }
+    
+    
 
     // MARK: - Key helpers
 

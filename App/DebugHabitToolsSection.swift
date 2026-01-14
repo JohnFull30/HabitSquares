@@ -12,9 +12,9 @@ struct DebugHabitToolsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Button("Seed 12 Days (Dev)") {
+            Button("Seed 30 Days (Dev)") {
                 HabitSeeder.seedCompletions(
-                    dayCount: 12,
+                    dayCount: 30,
                     for: habit,
                     in: viewContext,
                     markComplete: true
