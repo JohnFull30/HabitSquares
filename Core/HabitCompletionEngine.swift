@@ -148,16 +148,14 @@ enum HabitCompletionEngine {
 
     // MARK: - Key helpers
 
-    /// Read our stamped UUID (if your app stamps it) from an EKReminder.
-    /// Adjust this if your project stores it differently.
     private static func stampedUUID(from r: EKReminder) -> String? {
-        // If you already have a canonical key, keep it.
-        // Common pattern: store under a custom key in `notes` or `url`.
-        if let url = r.url?.absoluteString, url.hasPrefix("habitsquares://stamp/") {
-            return url.replacingOccurrences(of: "habitsquares://stamp/", with: "")
-        }
-        return nil
-    }
+        guard let url = r.url else { return nil }
+        guard url.scheme?.lowercased() == "habitsquares" else { return nil }
+        guard url.host?.lowercased() == "reminder-link" else { return nil }
+
+        let raw = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return raw.isEmpty ? nil : raw
+    }X  
 
     /// Normalize keys stored in Core Data links so they match what we store in `doneKeys` buckets.
     private static func normalizeStoredKey(_ key: String) -> String {

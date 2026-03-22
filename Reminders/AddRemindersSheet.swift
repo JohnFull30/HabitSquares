@@ -446,6 +446,9 @@ struct AddRemindersSheet: View {
 
         do {
             try viewContext.save()
+
+            await ReminderMetadataRefresher.shared.refreshLinkTitles(in: viewContext)
+
             HabitCompletionEngine.syncTodayFromReminders(in: viewContext, includeCompleted: true)
         } catch {
             print("✗ AddRemindersSheet: Core Data save failed \(error)")

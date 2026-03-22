@@ -19,6 +19,7 @@
 		527137E72EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E62EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift */; };
 		527137E92EFE0E4F001507E8 /* WidgetHabitEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E82EFE0E4F001507E8 /* WidgetHabitEntity.swift */; };
 		527137EB2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137EA2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift */; };
+		52C58EC92F7097500063A687 /* ReminderMetadataRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C58EC82F7097500063A687 /* ReminderMetadataRefresher.swift */; };
 		52D1D70A2EFB0E5C00B3F91A /* AddHabitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6F32EFB0E5C00B3F91A /* AddHabitView.swift */; };
 		52D1D70B2EFB0E5C00B3F91A /* AddRemindersSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6F42EFB0E5C00B3F91A /* AddRemindersSheet.swift */; };
 		52D1D70D2EFB0E5C00B3F91A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6F72EFB0E5C00B3F91A /* ContentView.swift */; };
@@ -106,6 +107,7 @@
 		527137EA2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHabitEntityQuery.swift; sourceTree = "<group>"; };
 		527137EF2EFE2274001507E8 /* WidgetSnapshot+Placeholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WidgetSnapshot+Placeholder.swift"; sourceTree = "<group>"; };
 		528904C52EF62EAB00479793 /* Habit Tracker WidgetExtensionDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Habit Tracker WidgetExtensionDebug.entitlements"; sourceTree = "<group>"; };
+		52C58EC82F7097500063A687 /* ReminderMetadataRefresher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderMetadataRefresher.swift; sourceTree = "<group>"; };
 		52D1D6F32EFB0E5C00B3F91A /* AddHabitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddHabitView.swift; sourceTree = "<group>"; };
 		52D1D6F42EFB0E5C00B3F91A /* AddRemindersSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRemindersSheet.swift; sourceTree = "<group>"; };
 		52D1D6F72EFB0E5C00B3F91A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -292,6 +294,7 @@
 		52D1D73E2EFB536100B3F91A /* Reminders */ = {
 			isa = PBXGroup;
 			children = (
+				52C58EC82F7097500063A687 /* ReminderMetadataRefresher.swift */,
 				52D1D6F32EFB0E5C00B3F91A /* AddHabitView.swift */,
 				52D1D6F42EFB0E5C00B3F91A /* AddRemindersSheet.swift */,
 				52D1D7042EFB0E5C00B3F91A /* RemindersClient.swift */,
@@ -521,6 +524,7 @@
 				52D1D7332EFB16E100B3F91A /* WidgetDay.swift in Sources */,
 				52D1D70A2EFB0E5C00B3F91A /* AddHabitView.swift in Sources */,
 				52D1D70B2EFB0E5C00B3F91A /* AddRemindersSheet.swift in Sources */,
+				52C58EC92F7097500063A687 /* ReminderMetadataRefresher.swift in Sources */,
 				52D1D70D2EFB0E5C00B3F91A /* ContentView.swift in Sources */,
 				52D1D7312EFB0FB200B3F91A /* NewReminderSheet.swift in Sources */,
 				52D1D70E2EFB0E5C00B3F91A /* Habit_TrackerApp.swift in Sources */,
