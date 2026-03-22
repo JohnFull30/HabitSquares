@@ -1,11 +1,3 @@
-//
-//  ReminderMetadataRefresher.swift
-//  Habit Tracker
-//
-//  Created by John Fuller on 3/22/26.
-//
-
-
 import Foundation
 import CoreData
 import EventKit
@@ -17,6 +9,8 @@ final class ReminderMetadataRefresher {
 
     @MainActor
     func refreshLinkTitles(in context: NSManagedObjectContext) async {
+        print("🚀 ReminderMetadataRefresher: refreshLinkTitles started")
+
         let store = EKEventStore()
         let accessGranted = await requestAccessIfNeeded(store: store)
 
@@ -34,23 +28,61 @@ final class ReminderMetadataRefresher {
 
         do {
             let links = try context.fetch(request)
+            print("📦 ReminderMetadataRefresher: fetched \(links.count) link(s)")
             guard !links.isEmpty else { return }
+
+            let reminders = await fetchAllReminders(from: store)
+            print("🗂️ ReminderMetadataRefresher: fetched \(reminders.count) reminder(s) from EventKit")
 
             var changedCount = 0
 
             for link in links {
-                guard let reminder = findReminder(for: link, in: store) else { continue }
+                let storedTitle = ((link.valueIfExists(forKey: "title") as? String) ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                let reminderIdentifier = ((link.valueIfExists(forKey: "reminderIdentifier") as? String) ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                let calendarItemIdentifier = ((link.valueIfExists(forKey: "calendarItemIdentifier") as? String) ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                let calendarItemExternalIdentifier = ((link.valueIfExists(forKey: "calendarItemExternalIdentifier") as? String) ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                guard let reminder = findReminder(
+                    for: link,
+                    in: reminders
+                ) else {
+                    print("""
+                    ⚠️ ReminderMetadataRefresher: could not resolve link
+                       cachedTitle=\(storedTitle)
+                       reminderIdentifier=\(reminderIdentifier)
+                       calendarItemIdentifier=\(calendarItemIdentifier)
+                       calendarItemExternalIdentifier=\(calendarItemExternalIdentifier)
+                    """)
+                    continue
+                }
 
                 let eventKitTitle = reminder.title.trimmingCharacters(in: .whitespacesAndNewlines)
-                let cachedTitle = ((link.valueIfExists(forKey: "title") as? String) ?? "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                print("""
+                🔎 ReminderMetadataRefresher compare
+                   cachedTitle=\(storedTitle)
+                   eventKitTitle=\(eventKitTitle)
+                   reminderStampedUUID=\(stampedUUID(from: reminder) ?? "")
+                   reminder.calendarItemIdentifier=\(reminder.calendarItemIdentifier)
+                   reminder.calendarItemExternalIdentifier=\(reminder.calendarItemExternalIdentifier)
+                   stored reminderIdentifier=\(reminderIdentifier)
+                   stored calendarItemIdentifier=\(calendarItemIdentifier)
+                   stored calendarItemExternalIdentifier=\(calendarItemExternalIdentifier)
+                """)
 
                 guard !eventKitTitle.isEmpty else { continue }
 
-                if eventKitTitle != cachedTitle {
+                if eventKitTitle != storedTitle {
                     link.setIfExistsString(eventKitTitle, forKey: "title")
                     changedCount += 1
-                    print("✏️ ReminderMetadataRefresher: updated cached title '\(cachedTitle)' -> '\(eventKitTitle)'")
+                    print("✏️ ReminderMetadataRefresher: updated cached title '\(storedTitle)' -> '\(eventKitTitle)'")
                 }
             }
 
@@ -66,13 +98,33 @@ final class ReminderMetadataRefresher {
         }
     }
 
-    // MARK: - Reminder resolution
+    // MARK: - Resolution
 
-    private func findReminder(for link: NSManagedObject, in store: EKEventStore) -> EKReminder? {
-        let ids = orderedCandidateIDs(from: link)
+    private func findReminder(
+        for link: NSManagedObject,
+        in reminders: [EKReminder]
+    ) -> EKReminder? {
+        let storedStamp = firstNonEmptyString(link.valueIfExists(forKey: "reminderIdentifier"))
+        let storedItemID = firstNonEmptyString(link.valueIfExists(forKey: "calendarItemIdentifier"))
+        let storedExternalID = firstNonEmptyString(link.valueIfExists(forKey: "calendarItemExternalIdentifier"))
 
-        for id in ids {
-            if let reminder = store.calendarItem(withIdentifier: id) as? EKReminder {
+        for reminder in reminders {
+            let reminderStamp = stampedUUID(from: reminder)
+            let reminderItemID = reminder.calendarItemIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
+            let reminderExternalID = reminder.calendarItemExternalIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if let storedStamp, let reminderStamp, storedStamp == reminderStamp {
+                print("✅ ReminderMetadataRefresher: matched by stamped UUID")
+                return reminder
+            }
+
+            if let storedItemID, !storedItemID.isEmpty, storedItemID == reminderItemID {
+                print("✅ ReminderMetadataRefresher: matched by calendarItemIdentifier")
+                return reminder
+            }
+
+            if let storedExternalID, !storedExternalID.isEmpty, storedExternalID == reminderExternalID {
+                print("✅ ReminderMetadataRefresher: matched by calendarItemExternalIdentifier")
                 return reminder
             }
         }
@@ -80,25 +132,30 @@ final class ReminderMetadataRefresher {
         return nil
     }
 
-    private func orderedCandidateIDs(from link: NSManagedObject) -> [String] {
-        var ids: [String] = []
+    private func stampedUUID(from reminder: EKReminder) -> String? {
+        guard let url = reminder.url else { return nil }
+        guard url.scheme?.lowercased() == "habitsquares" else { return nil }
+        guard url.host?.lowercased() == "reminder-link" else { return nil }
 
-        func append(_ raw: Any?) {
-            guard let value = raw as? String else { return }
-            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return }
-            guard !ids.contains(trimmed) else { return }
-            ids.append(trimmed)
+        let raw = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return raw.isEmpty ? nil : raw
+    }
+
+    private func fetchAllReminders(from store: EKEventStore) async -> [EKReminder] {
+        let calendars = store.calendars(for: .reminder)
+        let predicate = store.predicateForReminders(in: calendars)
+
+        return await withCheckedContinuation { continuation in
+            store.fetchReminders(matching: predicate) { reminders in
+                continuation.resume(returning: reminders ?? [])
+            }
         }
+    }
 
-        // Priority order based on your current storage
-        append(link.valueIfExists(forKey: "reminderIdentifier"))
-        append(link.valueIfExists(forKey: "reminderId"))
-        append(link.valueIfExists(forKey: "reminderID"))
-        append(link.valueIfExists(forKey: "calendarItemIdentifier"))
-        append(link.valueIfExists(forKey: "calendarItemExternalIdentifier"))
-
-        return ids
+    private func firstNonEmptyString(_ raw: Any?) -> String? {
+        guard let value = raw as? String else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     // MARK: - Model helpers

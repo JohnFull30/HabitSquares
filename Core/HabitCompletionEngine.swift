@@ -155,7 +155,7 @@ enum HabitCompletionEngine {
 
         let raw = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         return raw.isEmpty ? nil : raw
-    }X  
+    }
 
     /// Normalize keys stored in Core Data links so they match what we store in `doneKeys` buckets.
     private static func normalizeStoredKey(_ key: String) -> String {

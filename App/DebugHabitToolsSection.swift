@@ -26,6 +26,14 @@ struct DebugHabitToolsSection: View {
                 refreshWidget()
             }
             .foregroundStyle(.secondary)
+
+            Button("Refresh Reminder Titles (Dev)") {
+                Task { @MainActor in
+                    print("🧪 DebugHabitToolsSection: manual reminder title refresh tapped")
+                    await ReminderMetadataRefresher.shared.refreshLinkTitles(in: viewContext)
+                }
+            }
+            .foregroundStyle(.blue)
         }
         .font(.caption)
     }
