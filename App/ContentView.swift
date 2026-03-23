@@ -191,7 +191,7 @@ struct ContentView: View {
             }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
-                    WidgetCacheWriter.writeTodayAndIndex(in: viewContext)
+                    WidgetRefresh.push(viewContext)
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in

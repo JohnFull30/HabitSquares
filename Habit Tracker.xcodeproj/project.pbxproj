@@ -281,7 +281,6 @@
 		52D1D73D2EFB535B00B3F91A /* Core */ = {
 			isa = PBXGroup;
 			children = (
-				527137E32EFDFC78001507E8 /* WidgetCacheWriter.swift */,
 				52D1D6FB2EFB0E5C00B3F91A /* HabitCompletionEngine.swift */,
 				52D1D6FE2EFB0E5C00B3F91A /* HabitModel.xcdatamodel */,
 				52D1D6FF2EFB0E5C00B3F91A /* HabitModels.swift */,
@@ -325,6 +324,7 @@
 				52D1D7452EFB624600B3F91A /* WidgetSharedStore.swift */,
 				52D1D7422EFB623900B3F91A /* WidgetHabitStub.swift */,
 				52D1D7362EFB16FC00B3F91A /* WidgetDataWriter.swift */,
+				527137E32EFDFC78001507E8 /* WidgetCacheWriter.swift */,
 				52D1D7322EFB16E100B3F91A /* WidgetDay.swift */,
 			);
 			path = "Widget Shared";
