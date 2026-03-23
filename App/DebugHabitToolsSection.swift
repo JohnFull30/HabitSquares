@@ -35,7 +35,6 @@ struct DebugHabitToolsSection: View {
             }
             .foregroundStyle(.blue)
         }
-        .font(.caption)
     }
 
     private func refreshWidget() {

@@ -23,6 +23,7 @@ struct Habit_TrackerApp: App {
                     guard newPhase == .active else { return }
 
                     Task { @MainActor in
+                
                         await ReminderMetadataRefresher.shared.refreshLinkTitles(
                             in: persistenceController.container.viewContext
                         )

@@ -216,23 +216,7 @@ final class ReminderService {
     private func debugDump(reminders: [EKReminder], label: String, day: Date) {
         print("Reminders \(label): fetched \(reminders.count) item(s) for day=\(day).")
 
-        for r in reminders {
-            let due = r.dueDateComponents?.date
-            let stamped = stampedStableID(from: r) ?? "<none>"
-            let ext = r.calendarItemExternalIdentifier ?? "<nil>"
-            let id = r.calendarItemIdentifier
 
-            print("""
-            Reminder debug:
-              title=\(r.title ?? "<no title>")
-              due=\(String(describing: due))
-              isCompleted=\(r.isCompleted)
-              completionDate=\(String(describing: r.completionDate))
-              stampedStableID=\(stamped)
-              externalID=\(ext)
-              itemID=\(id)
-              url=\(String(describing: r.url))
-            """)
-        }
+        
     }
 }

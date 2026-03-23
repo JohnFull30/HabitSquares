@@ -9,7 +9,6 @@ final class ReminderMetadataRefresher {
 
     @MainActor
     func refreshLinkTitles(in context: NSManagedObjectContext) async {
-        print("🚀 ReminderMetadataRefresher: refreshLinkTitles started")
 
         let store = EKEventStore()
         let accessGranted = await requestAccessIfNeeded(store: store)
@@ -28,11 +27,9 @@ final class ReminderMetadataRefresher {
 
         do {
             let links = try context.fetch(request)
-            print("📦 ReminderMetadataRefresher: fetched \(links.count) link(s)")
             guard !links.isEmpty else { return }
 
             let reminders = await fetchAllReminders(from: store)
-            print("🗂️ ReminderMetadataRefresher: fetched \(reminders.count) reminder(s) from EventKit")
 
             var changedCount = 0
 
@@ -65,18 +62,6 @@ final class ReminderMetadataRefresher {
 
                 let eventKitTitle = reminder.title.trimmingCharacters(in: .whitespacesAndNewlines)
 
-                print("""
-                🔎 ReminderMetadataRefresher compare
-                   cachedTitle=\(storedTitle)
-                   eventKitTitle=\(eventKitTitle)
-                   reminderStampedUUID=\(stampedUUID(from: reminder) ?? "")
-                   reminder.calendarItemIdentifier=\(reminder.calendarItemIdentifier)
-                   reminder.calendarItemExternalIdentifier=\(reminder.calendarItemExternalIdentifier)
-                   stored reminderIdentifier=\(reminderIdentifier)
-                   stored calendarItemIdentifier=\(calendarItemIdentifier)
-                   stored calendarItemExternalIdentifier=\(calendarItemExternalIdentifier)
-                """)
-
                 guard !eventKitTitle.isEmpty else { continue }
 
                 if eventKitTitle != storedTitle {
@@ -90,7 +75,6 @@ final class ReminderMetadataRefresher {
                 try context.save()
                 print("✅ ReminderMetadataRefresher: saved \(changedCount) refreshed title(s)")
             } else {
-                print("ℹ️ ReminderMetadataRefresher: no title changes needed")
             }
 
         } catch {
@@ -114,17 +98,14 @@ final class ReminderMetadataRefresher {
             let reminderExternalID = reminder.calendarItemExternalIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
 
             if let storedStamp, let reminderStamp, storedStamp == reminderStamp {
-                print("✅ ReminderMetadataRefresher: matched by stamped UUID")
                 return reminder
             }
 
             if let storedItemID, !storedItemID.isEmpty, storedItemID == reminderItemID {
-                print("✅ ReminderMetadataRefresher: matched by calendarItemIdentifier")
                 return reminder
             }
 
             if let storedExternalID, !storedExternalID.isEmpty, storedExternalID == reminderExternalID {
-                print("✅ ReminderMetadataRefresher: matched by calendarItemExternalIdentifier")
                 return reminder
             }
         }
