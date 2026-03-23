@@ -9,6 +9,26 @@ import WidgetKit
 struct HabitSquaresWidgetView: View {
     let entry: HabitSquaresEntry
     @Environment(\.widgetFamily) private var family
+    
+    private var statusText: String? {
+        guard let payload = entry.selectedHabitPayload else { return nil }
+
+        if payload.totalRequired <= 0 {
+            return "No reminders"
+        }
+
+        if payload.isComplete {
+            return "Done"
+        }
+
+        let remaining = max(payload.totalRequired - payload.completedRequired, 0)
+        return remaining == 1 ? "1 left" : "\(remaining) left"
+    }
+
+    private var statusColor: Color {
+        guard let payload = entry.selectedHabitPayload else { return .secondary }
+        return payload.isComplete ? .green : .secondary
+    }
 
     private var titleText: String {
         entry.configuration.habit?.name ?? "Select a Habit"
@@ -21,6 +41,13 @@ struct HabitSquaresWidgetView: View {
                 .font(.headline)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
+            
+            if let statusText {
+                Text(statusText)
+                    .font(.caption)
+                    .foregroundStyle(statusColor)
+                    .lineLimit(1)
+            }
 
             GeometryReader { proxy in
                 let outer = proxy.size

@@ -13,18 +13,33 @@ struct HabitSquaresProvider: AppIntentTimelineProvider {
 
     func placeholder(in context: Context) -> HabitSquaresEntry {
         let config = HabitWidgetConfigurationIntent()
-        let snap = loadSnapshot(for: config)
-        return HabitSquaresEntry(date: .now, configuration: config, snapshot: snap)
+        let result = loadWidgetData(for: config)
+        return HabitSquaresEntry(
+            date: .now,
+            configuration: config,
+            snapshot: result.snapshot,
+            selectedHabitPayload: result.payload
+        )
     }
 
     func snapshot(for configuration: HabitWidgetConfigurationIntent, in context: Context) async -> HabitSquaresEntry {
-        let snap = loadSnapshot(for: configuration)
-        return HabitSquaresEntry(date: .now, configuration: configuration, snapshot: snap)
+        let result = loadWidgetData(for: configuration)
+        return HabitSquaresEntry(
+            date: .now,
+            configuration: configuration,
+            snapshot: result.snapshot,
+            selectedHabitPayload: result.payload
+        )
     }
 
     func timeline(for configuration: HabitWidgetConfigurationIntent, in context: Context) async -> Timeline<HabitSquaresEntry> {
-        let snap = loadSnapshot(for: configuration)
-        let entry = HabitSquaresEntry(date: .now, configuration: configuration, snapshot: snap)
+        let result = loadWidgetData(for: configuration)
+        let entry = HabitSquaresEntry(
+            date: .now,
+            configuration: configuration,
+            snapshot: result.snapshot,
+            selectedHabitPayload: result.payload
+        )
 
         // Conservative refresh cadence; you also manually trigger reloads from the app.
         let next = Calendar.current.date(byAdding: .minute, value: 15, to: .now) ?? .now.addingTimeInterval(15 * 60)
@@ -33,27 +48,28 @@ struct HabitSquaresProvider: AppIntentTimelineProvider {
 
     // MARK: Snapshot loader
 
-    private func loadSnapshot(for configuration: HabitWidgetConfigurationIntent) -> WidgetSnapshot {
+    private func loadWidgetData(
+        for configuration: HabitWidgetConfigurationIntent
+    ) -> (snapshot: WidgetSnapshot, payload: WidgetHabitTodayPayload?) {
 
-        // If a habit is selected, use that habit’s payload (grid + today status)
         if let selectedHabitID = configuration.habit?.id,
            let payload = WidgetSharedStore.readToday(habitID: selectedHabitID) {
 
-            return WidgetSnapshot(
+            let snapshot = WidgetSnapshot(
                 updatedAt: payload.updatedAt,
-                days: payload.days, // expected oldest->newest
+                days: payload.days,
                 totalHabits: 1,
                 completeHabits: payload.isComplete ? 1 : 0
             )
+
+            return (snapshot, payload)
         }
 
-        // Otherwise fall back to overall snapshot cache (if you still write it)
         if let snap = WidgetSharedStore.readSnapshot() {
-            return snap
+            return (snap, nil)
         }
 
-        // Final fallback: all-gray placeholder
-        return WidgetSnapshotStore.placeholder(dayCount: 60)
+        return (WidgetSnapshotStore.placeholder(dayCount: 60), nil)
     }
 }
 
@@ -63,6 +79,7 @@ struct HabitSquaresEntry: TimelineEntry {
     let date: Date
     let configuration: HabitWidgetConfigurationIntent
     let snapshot: WidgetSnapshot
+    let selectedHabitPayload: WidgetHabitTodayPayload?
 }
 
 // MARK: - Widget
