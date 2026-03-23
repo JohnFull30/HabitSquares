@@ -100,7 +100,11 @@ struct AddRemindersSheet: View {
                 
             }
             .sheet(isPresented: $showNewReminderSheet) {
-                NewReminderSheet(eventStore: store, habitName: habitName) { newReminder, isRequired in
+                NewReminderSheet(
+                    eventStore: store,
+                    habitName: habitName,
+                    initialCalendarID: selectedCalendarID
+                ) { newReminder, isRequired in
                     handleCreatedReminder(newReminder, isRequired: isRequired)
                 }
             }
@@ -114,19 +118,50 @@ struct AddRemindersSheet: View {
     private var glassHeader: some View {
         VStack(spacing: 10) {
             if !availableCalendars.isEmpty {
-                Picker("List", selection: $selectedCalendarID) {
-                    Text("All Lists").tag(String?.none)
-                    ForEach(availableCalendars, id: \.calendarIdentifier) { cal in
-                        Text(cal.title).tag(Optional(cal.calendarIdentifier))
+                HStack {
+                    Text("List")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Menu {
+                        Button("All Lists") {
+                            selectedCalendarID = nil
+                        }
+
+                        Divider()
+
+                        ForEach(orderedCalendars, id: \.calendarIdentifier) { cal in
+                            Button {
+                                selectedCalendarID = cal.calendarIdentifier
+                            } label: {
+                                if selectedCalendarID == cal.calendarIdentifier {
+                                    Label(cal.title, systemImage: "checkmark")
+                                } else {
+                                    Text(cal.title)
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(selectedCalendarTitle)
+                                .foregroundStyle(.primary)
+
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(.thinMaterial, in: Capsule())
                     }
                 }
-                .pickerStyle(.menu)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             TextField("Search reminders", text: $query)
                 .textFieldStyle(.roundedBorder)
-            
+
             Button {
                 showNewReminderSheet = true
             } label: {
@@ -153,6 +188,28 @@ struct AddRemindersSheet: View {
         let dict = Dictionary(grouping: allReminders, by: { $0.calendar.calendarIdentifier })
         let calendars = dict.values.compactMap { $0.first?.calendar }
         return calendars.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+    }
+    
+    private var orderedCalendars: [EKCalendar] {
+        let selectedID = selectedCalendarID
+
+        return availableCalendars.sorted { lhs, rhs in
+            let lhsIsSelected = lhs.calendarIdentifier == selectedID
+            let rhsIsSelected = rhs.calendarIdentifier == selectedID
+
+            if lhsIsSelected != rhsIsSelected {
+                return lhsIsSelected
+            }
+
+            return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+        }
+    }
+    
+    private var selectedCalendarTitle: String {
+        guard let selectedCalendarID else { return "All Lists" }
+
+        return availableCalendars.first(where: { $0.calendarIdentifier == selectedCalendarID })?.title
+            ?? "All Lists"
     }
 
     private var filteredReminders: [EKReminder] {
@@ -311,7 +368,11 @@ struct AddRemindersSheet: View {
             hydrateAlreadyLinked()
 
             if selectedCalendarID == nil {
-                selectedCalendarID = availableCalendars.first?.calendarIdentifier
+                let systemDefaultID = store.defaultCalendarForNewReminders()?.calendarIdentifier
+
+                selectedCalendarID =
+                    availableCalendars.first(where: { $0.calendarIdentifier == systemDefaultID })?.calendarIdentifier
+                    ?? availableCalendars.first?.calendarIdentifier
             }
         }
     }

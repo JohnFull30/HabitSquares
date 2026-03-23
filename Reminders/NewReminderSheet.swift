@@ -15,6 +15,7 @@ import EventKit
 struct NewReminderSheet: View {
     let eventStore: EKEventStore
     let habitName: String
+    let initialCalendarID: String?
     let onCreate: (EKReminder, Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -45,12 +46,15 @@ struct NewReminderSheet: View {
                     if calendars.isEmpty {
                         Text("Loading lists…")
                     } else {
-                        Picker("List", selection: Binding(
-                            get: { selectedCalendar?.calendarIdentifier ?? calendars.first?.calendarIdentifier ?? "" },
-                            set: { newID in
-                                selectedCalendar = calendars.first(where: { $0.calendarIdentifier == newID })
-                            }
-                        )) {
+                        Picker(
+                            "List",
+                            selection: Binding(
+                                get: { selectedCalendar?.calendarIdentifier ?? calendars.first?.calendarIdentifier ?? "" },
+                                set: { newID in
+                                    selectedCalendar = calendars.first(where: { $0.calendarIdentifier == newID })
+                                }
+                            )
+                        ) {
                             ForEach(calendars, id: \.calendarIdentifier) { cal in
                                 Text(cal.title).tag(cal.calendarIdentifier)
                             }
@@ -80,6 +84,7 @@ struct NewReminderSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isSaving ? "Saving…" : "Save") {
                         Task { await save() }
@@ -91,18 +96,18 @@ struct NewReminderSheet: View {
                     )
                 }
             }
-            .task { await loadCalendars() }
+            .task {
+                await loadCalendars()
+            }
         }
     }
 
     // MARK: - EventKit
 
     private func loadCalendars() async {
-        errorMessage = nil
-
         let ok = await requestRemindersAccessIfNeeded()
         guard ok else {
-            errorMessage = "Reminders access is not granted. Enable it in Settings → Privacy & Security → Reminders."
+            errorMessage = "Reminders access is not granted. Enable it in Settings > Privacy & Security > Reminders."
             return
         }
 
@@ -111,7 +116,16 @@ struct NewReminderSheet: View {
 
         await MainActor.run {
             calendars = cals
-            selectedCalendar = selectedCalendar ?? cals.first
+
+            if selectedCalendar == nil {
+                let systemDefaultID = eventStore.defaultCalendarForNewReminders()?.calendarIdentifier
+
+                selectedCalendar =
+                    cals.first(where: { $0.calendarIdentifier == initialCalendarID })
+                    ?? cals.first(where: { $0.calendarIdentifier == systemDefaultID })
+                    ?? cals.first(where: { $0.allowsContentModifications })
+                    ?? cals.first
+            }
         }
     }
 
@@ -134,7 +148,6 @@ struct NewReminderSheet: View {
             reminder.title = cleanTitle
             reminder.notes = "Created by HabitSquares for habit: \(habitName)"
 
-            // ✅ Due date components (required for repeating reminders)
             var comps = Calendar.current.dateComponents([.year, .month, .day], from: Date())
 
             if hasDueTime {
@@ -148,13 +161,11 @@ struct NewReminderSheet: View {
 
             reminder.dueDateComponents = comps
 
-            // Daily recurrence
             let rule = EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil)
             reminder.recurrenceRules = [rule]
 
             try eventStore.save(reminder, commit: true)
 
-            // Make sure UI state updates happen on the main actor
             await MainActor.run {
                 onCreate(reminder, isRequired)
                 dismiss()
