@@ -38,8 +38,7 @@ struct DebugHabitToolsSection: View {
     }
 
     private func refreshWidget() {
-        WidgetCacheWriter.writeTodayAndIndex(in: viewContext)
-        WidgetCenter.shared.reloadAllTimelines()
+        WidgetRefresh.push(viewContext)
         print("🧪 DebugHabitToolsSection: refreshed widget for habit \(habit.name ?? "Habit")")
     }
 }
