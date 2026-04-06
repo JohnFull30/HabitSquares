@@ -35,12 +35,13 @@ struct HabitSquaresWidgetView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-
+        VStack(alignment: .leading, spacing: family == .systemSmall ? 4 : 5) {
             Text(titleText)
                 .font(.headline)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
+                .padding(.bottom, 1)
+                .padding(.leading, family == .systemSmall ? 2 : 0)
             
             if let statusText {
                 Text(statusText)
@@ -52,7 +53,6 @@ struct HabitSquaresWidgetView: View {
             GeometryReader { proxy in
                 let outer = proxy.size
 
-                // Inner box after padding
                 let inset: CGFloat = (family == .systemSmall) ? 6 : 5
                 let inner = CGSize(
                     width: max(1, outer.width - inset * 2),
@@ -61,11 +61,9 @@ struct HabitSquaresWidgetView: View {
 
                 let layout = WidgetGridLayout.pick(for: family, in: inner)
 
-                // Ensure chronological order (oldest -> newest)
                 let sorted = entry.snapshot.days.sorted { $0.dateKey < $1.dateKey }
-                let chosen = Array(sorted.suffix(layout.count)) // still oldest->newest
+                let chosen = Array(sorted.suffix(layout.count))
 
-                // LEFT-pad so newest lands bottom-right
                 let padCount = max(0, layout.count - chosen.count)
                 let padded: [WidgetDay?] = Array(repeating: nil, count: padCount) + chosen.map(Optional.some)
 
@@ -90,9 +88,9 @@ struct HabitSquaresWidgetView: View {
                 }
                 .padding(inset)
             }
+            .padding(.top, family == .systemSmall ? -4 : -2)
         }
-        .padding(6)
-        .containerBackground(.background, for: .widget)
+        .padding(family == .systemSmall ? 7 : 6)        .containerBackground(.background, for: .widget)
         .widgetURL(widgetURL)
     }
 

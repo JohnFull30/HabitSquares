@@ -70,13 +70,7 @@ struct ContentView: View {
 
                         Spacer()
 
-                        Button {
-                            syncTodayAndHistoryIfNeeded(force: true)
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.title3.weight(.semibold))
-                        }
-                        .accessibilityLabel("Refresh")
+             
                     }
                     .hsCard()
                     .padding(.horizontal)

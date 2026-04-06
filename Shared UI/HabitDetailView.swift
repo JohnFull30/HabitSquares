@@ -42,8 +42,22 @@ struct HabitDetailView: View {
             }
 
 #if DEBUG
-            Section("Developer") {
-                DebugHabitToolsSection(habit: habit)
+            Section {
+                DisclosureGroup {
+                    HabitDetailDebugToolsSection(
+                        onSeedThirtyDays: seedThirtyDays,
+                        onReloadWidget: reloadWidget,
+                        onRefreshReminderTitles: refreshReminderTitles
+                    )
+                    .padding(.top, 8)
+                } label: {
+                    Label("Developer Tools", systemImage: "wrench.and.screwdriver")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            } footer: {
+                Text("Debug-only actions for seeding, syncing, and widget refresh.")
+                    .font(.caption)
             }
 #endif
         }
@@ -75,10 +89,7 @@ struct HabitDetailView: View {
                     handleEditedReminderSave(updatedReminder, isRequired: isRequired)
                 }
             }
-            
-            
         }
-        
         .confirmDelete(
             item: $linkPendingDelete,
             title: "Delete linked reminder?",
@@ -126,7 +137,8 @@ struct HabitDetailView: View {
                 linkPendingDelete = link
             } label: {
                 Label("Delete", systemImage: "trash")
-            }        }
+            }
+        }
     }
 
     private func displayTitle(for link: HabitReminderLink) -> String {
@@ -202,6 +214,29 @@ struct HabitDetailView: View {
 
             editingReminder = nil
             editingLink = nil
+        }
+    }
+
+    // MARK: - Debug Actions
+
+    private func seedThirtyDays() {
+        print("DebugHabitToolsSection: seedThirtyDays tapped")
+        // Reconnect this to your existing HabitSeeder call if you still want this button.
+    }
+
+    private func reloadWidget() {
+        WidgetRefresh.push(context)
+        eventKitSyncCoordinator.refreshNow()
+        print("DebugHabitToolsSection: refreshed widget for habit \(habit.name ?? "Habit")")
+    }
+
+    private func refreshReminderTitles() {
+        Task { @MainActor in
+            await ReminderMetadataRefresher.shared.refreshLinkTitles(in: context)
+            HabitCompletionEngine.syncTodayFromReminders(in: context, includeCompleted: true)
+            WidgetRefresh.push(context)
+            eventKitSyncCoordinator.refreshNow()
+            print("DebugHabitToolsSection: manual reminder title refresh tapped")
         }
     }
 
@@ -299,3 +334,82 @@ struct HabitDetailView: View {
         }
     }
 }
+
+#if DEBUG
+private struct HabitDetailDebugToolsSection: View {
+    let onSeedThirtyDays: () -> Void
+    let onReloadWidget: () -> Void
+    let onRefreshReminderTitles: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button(action: onSeedThirtyDays) {
+                debugActionRow(
+                    title: "Seed 30 Days",
+                    subtitle: "Fill recent history for testing",
+                    systemImage: "calendar.badge.plus"
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider()
+                .padding(.leading, 44)
+
+            Button(action: onReloadWidget) {
+                debugActionRow(
+                    title: "Reload Widget",
+                    subtitle: "Force today widget refresh",
+                    systemImage: "arrow.clockwise"
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider()
+                .padding(.leading, 44)
+
+            Button(action: onRefreshReminderTitles) {
+                debugActionRow(
+                    title: "Refresh Reminder Titles",
+                    subtitle: "Re-pull reminder names from EventKit",
+                    systemImage: "text.badge.checkmark"
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func debugActionRow(
+        title: String,
+        subtitle: String,
+        systemImage: String
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+}
+#endif
