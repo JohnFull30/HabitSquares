@@ -41,7 +41,6 @@ struct HabitSquaresProvider: AppIntentTimelineProvider {
             selectedHabitPayload: result.payload
         )
 
-        // Conservative refresh cadence; you also manually trigger reloads from the app.
         let next = Calendar.current.date(byAdding: .minute, value: 15, to: .now) ?? .now.addingTimeInterval(15 * 60)
         return Timeline(entries: [entry], policy: .after(next))
     }
@@ -113,6 +112,7 @@ struct HabitSquaresWidget: Widget {
         .configurationDisplayName("HabitSquares")
         .description("Your recent completions at a glance.")
         .supportedFamilies([.systemSmall, .systemMedium])
+        .contentMarginsDisabled()
     }
 }
 
@@ -128,7 +128,6 @@ struct WidgetGridLayout {
 
     static func pick(for family: WidgetFamily, in size: CGSize) -> WidgetGridLayout {
 
-        // Keep your preferred spacing/rounding
         let spacing: CGFloat = 4
         let corner: CGFloat = 4
 
@@ -151,10 +150,8 @@ struct WidgetGridLayout {
         }
 
         if family == .systemSmall {
-            // 30-day grid
             return layout(count: 30, cols: 6, rows: 5)
         } else {
-            // 60-day grid
             return layout(count: 60, cols: 15, rows: 4)
         }
     }
