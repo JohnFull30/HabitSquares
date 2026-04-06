@@ -20,7 +20,8 @@ struct AddRemindersSheet: View {
 
     // Keys for selection
     @State private var selectedKeys: Set<String> = []
-    @State private var alreadyLinkedStableUUIDs: Set<String> = []
+    @State private var linkedToThisHabitStableUUIDs: Set<String> = []
+    @State private var linkedAnywhereStableUUIDs: Set<String> = []
     @State private var requiredKeys: Set<String> = []
 
     // Filters
@@ -29,8 +30,22 @@ struct AddRemindersSheet: View {
         case all = "All"
     }
 
+    private enum ReminderLinkPolicy {
+        case oneHabitOnly
+        case allowMultipleHabits
+    }
+
+    private enum ReminderRowState {
+        case linkedToThisHabit
+        case linkedToAnotherHabit
+        case available
+    }
+
     @State private var filterMode: FilterMode = .suggested
     @State private var selectedCalendarID: String? = nil
+
+    // Flip this later if you decide one Apple Reminder can feed multiple habits
+    private let reminderLinkPolicy: ReminderLinkPolicy = .oneHabitOnly
 
     // MARK: - Stamp format
     // habitsquares://reminder-link/<uuid>
@@ -38,15 +53,12 @@ struct AddRemindersSheet: View {
     private let stampHost = "reminder-link"
 
     private func handleCreatedReminder(_ r: EKReminder, isRequired: Bool) {
-        // 1) Add it to the current list immediately (no refetch needed)
         if !allReminders.contains(where: { $0.calendarItemIdentifier == r.calendarItemIdentifier }) {
             allReminders.append(r)
         }
 
-        // 2) Jump the list filter to the reminder’s list
         selectedCalendarID = r.calendar.calendarIdentifier
 
-        // 3) Auto-select it so the user can just hit Save
         let key = stableIdentifierToStore(for: r)
         selectedKeys.insert(key)
 
@@ -81,8 +93,28 @@ struct AddRemindersSheet: View {
                         .padding(.vertical, 24)
                         .listRowBackground(Color.clear)
                     } else {
-                        ForEach(filteredReminders, id: \.calendarItemIdentifier) { r in
-                            reminderRow(r)
+                        if !linkedFilteredReminders.isEmpty {
+                            Section("Already Linked") {
+                                ForEach(linkedFilteredReminders, id: \.calendarItemIdentifier) { r in
+                                    reminderRow(r)
+                                }
+                            }
+                        }
+
+                        if !blockedFilteredReminders.isEmpty {
+                            Section("Linked to Another Habit") {
+                                ForEach(blockedFilteredReminders, id: \.calendarItemIdentifier) { r in
+                                    reminderRow(r)
+                                }
+                            }
+                        }
+
+                        if !availableFilteredReminders.isEmpty {
+                            Section("Available to Link") {
+                                ForEach(availableFilteredReminders, id: \.calendarItemIdentifier) { r in
+                                    reminderRow(r)
+                                }
+                            }
                         }
                     }
                 }
@@ -253,7 +285,6 @@ struct AddRemindersSheet: View {
     }
 
     private var filteredReminders: [EKReminder] {
-        // Start from HabitSquares-eligible reminders only
         let base: [EKReminder] = {
             switch filterMode {
             case .suggested:
@@ -291,6 +322,38 @@ struct AddRemindersSheet: View {
         return dedupeForPickerUI(searched)
     }
 
+    private var linkedFilteredReminders: [EKReminder] {
+        filteredReminders.filter { reminder in
+            guard let stamp = stampedUUID(from: reminder) else { return false }
+            return linkedToThisHabitStableUUIDs.contains(stamp)
+        }
+    }
+
+    private var blockedFilteredReminders: [EKReminder] {
+        guard reminderLinkPolicy == .oneHabitOnly else { return [] }
+
+        return filteredReminders.filter { reminder in
+            guard let stamp = stampedUUID(from: reminder) else { return false }
+            return linkedAnywhereStableUUIDs.contains(stamp) && !linkedToThisHabitStableUUIDs.contains(stamp)
+        }
+    }
+
+    private var availableFilteredReminders: [EKReminder] {
+        filteredReminders.filter { reminder in
+            guard let stamp = stampedUUID(from: reminder) else { return true }
+
+            if linkedToThisHabitStableUUIDs.contains(stamp) {
+                return false
+            }
+
+            if reminderLinkPolicy == .oneHabitOnly && linkedAnywhereStableUUIDs.contains(stamp) {
+                return false
+            }
+
+            return true
+        }
+    }
+
     private func isEligibleReminderForHabitBrowser(_ reminder: EKReminder) -> Bool {
         let trimmedTitle = reminder.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else { return false }
@@ -301,6 +364,22 @@ struct AddRemindersSheet: View {
 
     private func isRecurring(_ reminder: EKReminder) -> Bool {
         !(reminder.recurrenceRules?.isEmpty ?? true)
+    }
+
+    private func rowState(for reminder: EKReminder) -> ReminderRowState {
+        guard let stamp = stampedUUID(from: reminder) else {
+            return .available
+        }
+
+        if linkedToThisHabitStableUUIDs.contains(stamp) {
+            return .linkedToThisHabit
+        }
+
+        if reminderLinkPolicy == .oneHabitOnly && linkedAnywhereStableUUIDs.contains(stamp) {
+            return .linkedToAnotherHabit
+        }
+
+        return .available
     }
 
     /// Collapse recurring instances / duplicates so the picker is clean.
@@ -341,23 +420,31 @@ struct AddRemindersSheet: View {
 
     private func reminderRow(_ r: EKReminder) -> some View {
         let selectionKey = stableIdentifierToStore(for: r)
-
-        let stamp = stampedUUID(from: r)
-        let isAlreadyLinked = (stamp != nil) && alreadyLinkedStableUUIDs.contains(stamp!)
+        let state = rowState(for: r)
         let isSelected = selectedKeys.contains(selectionKey)
 
+        let isLinkedToThisHabit = state == .linkedToThisHabit
+        let isLinkedToAnotherHabit = state == .linkedToAnotherHabit
+        let isDisabled = isLinkedToThisHabit || isLinkedToAnotherHabit
+
         return Button {
-            guard !isAlreadyLinked else { return }
+            guard !isDisabled else { return }
             toggleSelected(key: selectionKey)
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: isAlreadyLinked ? "link" : (isSelected ? "checkmark.circle.fill" : "circle"))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(isAlreadyLinked ? .secondary : (isSelected ? .primary : .secondary))
+                Image(systemName:
+                    isLinkedToThisHabit ? "link" :
+                    isLinkedToAnotherHabit ? "lock" :
+                    (isSelected ? "checkmark.circle.fill" : "circle")
+                )
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(
+                    isDisabled ? .secondary : (isSelected ? .primary : .secondary)
+                )
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(r.title)
-                        .foregroundStyle(isAlreadyLinked ? .secondary : .primary)
+                        .foregroundStyle(isDisabled ? .secondary : .primary)
 
                     HStack(spacing: 6) {
                         Text(r.calendar.title)
@@ -371,17 +458,30 @@ struct AddRemindersSheet: View {
                         Text("Repeats")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+
+                        if isLinkedToAnotherHabit {
+                            Text("•")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            Text("Used by another habit")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
                 Spacer()
 
-                if isSelected && !isAlreadyLinked {
+                if isSelected && !isDisabled {
                     Toggle("Required", isOn: Binding(
                         get: { requiredKeys.contains(selectionKey) },
                         set: { newValue in
-                            if newValue { requiredKeys.insert(selectionKey) }
-                            else { requiredKeys.remove(selectionKey) }
+                            if newValue {
+                                requiredKeys.insert(selectionKey)
+                            } else {
+                                requiredKeys.remove(selectionKey)
+                            }
                         }
                     ))
                     .labelsHidden()
@@ -390,7 +490,7 @@ struct AddRemindersSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(isAlreadyLinked)
+        .disabled(isDisabled)
     }
 
     private func toggleSelected(key: String) {
@@ -467,18 +567,26 @@ struct AddRemindersSheet: View {
                 in: viewContext
               )
         else {
-            alreadyLinkedStableUUIDs = []
+            linkedToThisHabitStableUUIDs = []
+            linkedAnywhereStableUUIDs = []
             return
         }
 
-        let links = fetchLinks(
+        let allLinksRequest = NSFetchRequest<NSManagedObject>(entityName: linkEntityName)
+        let allLinks = (try? viewContext.fetch(allLinksRequest)) ?? []
+
+        linkedAnywhereStableUUIDs = Set(allLinks.flatMap { link in
+            Array(linkStoredStableUUIDs(link))
+        })
+
+        let linksForThisHabit = fetchLinks(
             for: habit,
             linkEntityName: linkEntityName,
             linkToHabitKey: linkToHabitKey,
             in: viewContext
         )
 
-        alreadyLinkedStableUUIDs = Set(links.flatMap { link in
+        linkedToThisHabitStableUUIDs = Set(linksForThisHabit.flatMap { link in
             Array(linkStoredStableUUIDs(link))
         })
     }
