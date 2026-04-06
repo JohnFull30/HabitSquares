@@ -18,6 +18,7 @@ struct EditHabitSheet: View {
     @State private var editingReminder: EKReminder?
     @State private var editingLink: HabitReminderLink?
     @State private var editingReminderIsRequiredForGreenSquare = true
+    @State private var linkPendingDelete: HabitReminderLink?
 
     init(habit: Habit) {
         self.habit = habit
@@ -115,6 +116,15 @@ struct EditHabitSheet: View {
                     }
                 }
             }
+            
+            .confirmDelete(
+                item: $linkPendingDelete,
+                title: "Delete linked reminder?",
+                message: "This removes the reminder from this habit. It does not delete the reminder from Apple Reminders.",
+                confirmTitle: "Delete Link"
+            ) { link in
+                deleteLinkedReminder(link)
+            }
         }
     }
 
@@ -155,8 +165,7 @@ struct EditHabitSheet: View {
                 .buttonStyle(.borderless)
 
                 Button(role: .destructive) {
-                    deleteLinkedReminder(link)
-                } label: {
+                    linkPendingDelete = link                } label: {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.borderless)
@@ -171,8 +180,7 @@ struct EditHabitSheet: View {
             .tint(.blue)
 
             Button(role: .destructive) {
-                deleteLinkedReminder(link)
-            } label: {
+                linkPendingDelete = link            } label: {
                 Label("Delete", systemImage: "trash")
             }
         }

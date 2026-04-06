@@ -14,6 +14,7 @@ struct HabitDetailView: View {
     @State private var editingReminder: EKReminder?
     @State private var editingLink: HabitReminderLink?
     @State private var editingReminderIsRequiredForGreenSquare = true
+    @State private var linkPendingDelete: HabitReminderLink?
 
     private var links: [HabitReminderLink] {
         let set = (habit.reminderLinks as? Set<HabitReminderLink>) ?? []
@@ -74,6 +75,17 @@ struct HabitDetailView: View {
                     handleEditedReminderSave(updatedReminder, isRequired: isRequired)
                 }
             }
+            
+            
+        }
+        
+        .confirmDelete(
+            item: $linkPendingDelete,
+            title: "Delete linked reminder?",
+            message: "This removes the reminder from this habit. It does not delete the reminder from Apple Reminders.",
+            confirmTitle: "Delete Link"
+        ) { link in
+            deleteLinkedReminder(link)
         }
     }
 
@@ -111,11 +123,10 @@ struct HabitDetailView: View {
             .tint(.blue)
 
             Button(role: .destructive) {
-                deleteLinkedReminder(link)
+                linkPendingDelete = link
             } label: {
                 Label("Delete", systemImage: "trash")
-            }
-        }
+            }        }
     }
 
     private func displayTitle(for link: HabitReminderLink) -> String {

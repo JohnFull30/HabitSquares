@@ -17,6 +17,7 @@
 		525290BB2F1848AF00ED07F6 /* EditHabitSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 525290BA2F1848AE00ED07F6 /* EditHabitSheet.swift */; };
 		52563E4B2F834F2C00C73C31 /* ReminderRepeatKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52563E4A2F834F2C00C73C31 /* ReminderRepeatKind.swift */; };
 		52563E832F83539300C73C31 /* EventKitSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52563E822F83539300C73C31 /* EventKitSyncCoordinator.swift */; };
+		52563E852F84132F00C73C31 /* ConfirmDeleteModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52563E842F84132F00C73C31 /* ConfirmDeleteModifier.swift */; };
 		527137E42EFDFC78001507E8 /* WidgetCacheWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E32EFDFC78001507E8 /* WidgetCacheWriter.swift */; };
 		527137E72EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E62EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift */; };
 		527137E92EFE0E4F001507E8 /* WidgetHabitEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E82EFE0E4F001507E8 /* WidgetHabitEntity.swift */; };
@@ -105,6 +106,7 @@
 		525290BA2F1848AE00ED07F6 /* EditHabitSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditHabitSheet.swift; sourceTree = "<group>"; };
 		52563E4A2F834F2C00C73C31 /* ReminderRepeatKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderRepeatKind.swift; sourceTree = "<group>"; };
 		52563E822F83539300C73C31 /* EventKitSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventKitSyncCoordinator.swift; sourceTree = "<group>"; };
+		52563E842F84132F00C73C31 /* ConfirmDeleteModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmDeleteModifier.swift; sourceTree = "<group>"; };
 		527137E32EFDFC78001507E8 /* WidgetCacheWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetCacheWriter.swift; sourceTree = "<group>"; };
 		527137E62EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitWidgetConfigurationIntent.swift; sourceTree = "<group>"; };
 		527137E82EFE0E4F001507E8 /* WidgetHabitEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHabitEntity.swift; sourceTree = "<group>"; };
@@ -272,6 +274,7 @@
 		52D1D73C2EFB534B00B3F91A /* App */ = {
 			isa = PBXGroup;
 			children = (
+				52563E842F84132F00C73C31 /* ConfirmDeleteModifier.swift */,
 				52563E822F83539300C73C31 /* EventKitSyncCoordinator.swift */,
 				525290BA2F1848AE00ED07F6 /* EditHabitSheet.swift */,
 				52302D952F0EA8A80069311F /* DebugHabitToolsSection.swift */,
@@ -532,6 +535,7 @@
 				52D1D70A2EFB0E5C00B3F91A /* AddHabitView.swift in Sources */,
 				52D1D70B2EFB0E5C00B3F91A /* AddRemindersSheet.swift in Sources */,
 				52C58EC92F7097500063A687 /* ReminderMetadataRefresher.swift in Sources */,
+				52563E852F84132F00C73C31 /* ConfirmDeleteModifier.swift in Sources */,
 				52D1D70D2EFB0E5C00B3F91A /* ContentView.swift in Sources */,
 				52D1D7312EFB0FB200B3F91A /* NewReminderSheet.swift in Sources */,
 				52563E832F83539300C73C31 /* EventKitSyncCoordinator.swift in Sources */,

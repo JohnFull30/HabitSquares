@@ -20,6 +20,8 @@ struct ContentView: View {
 
     // Which sheet is currently active
     @State private var activeSheet: ActiveSheet?
+    
+    @State private var habitPendingDelete: Habit?
 
     @AppStorage("lastHistoryBackfillDay") private var lastHistoryBackfillDay: Double = 0
 
@@ -118,7 +120,7 @@ struct ContentView: View {
                                             }
 
                                             Button(role: .destructive) {
-                                                deleteHabit(habit)
+                                                habitPendingDelete = habit
                                             } label: {
                                                 Label("Delete Habit", systemImage: "trash")
                                             }
@@ -196,6 +198,15 @@ struct ContentView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
                 syncTodayOnly() // fast when reminders change
+            }
+            
+            .confirmDelete(
+                item: $habitPendingDelete,
+                title: "Delete habit?",
+                message: "This will remove the habit and its linked data from HabitSquares.",
+                confirmTitle: "Delete Habit"
+            ) { habit in
+                deleteHabit(habit)
             }
 
             // Hide default nav bar so our custom header can sit as high as possible
