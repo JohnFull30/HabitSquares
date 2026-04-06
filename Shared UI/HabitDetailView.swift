@@ -8,7 +8,7 @@ struct HabitDetailView: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject private var eventKitSyncCoordinator: EventKitSyncCoordinator
 
-
+    @State private var loadedReminders: [EKReminder] = []
     @State private var showingAddReminders = false
     @State private var reminderStore = EKEventStore()
     @State private var editingReminder: EKReminder?
@@ -21,7 +21,6 @@ struct HabitDetailView: View {
         return set.sorted { ($0.title ?? "") < ($1.title ?? "") }
     }
 
-    
     var body: some View {
         List {
             Section("Linked Reminders") {
@@ -34,35 +33,38 @@ struct HabitDetailView: View {
                     }
                     .onDelete(perform: deleteLinks)
                 }
-                
+
                 Button {
                     showingAddReminders = true
                 } label: {
                     Label("Add Reminders", systemImage: "plus")
                 }
             }
-            
+
 #if DEBUG
-Section(footer:
-    Text("Debug-only actions for seeding, syncing, and widget refresh.")
-        .font(.caption)
-) {
-    DisclosureGroup {
-        HabitDetailDebugToolsSection(
-            onSeedThirtyDays: seedThirtyDays,
-            onReloadWidget: reloadWidget,
-            onRefreshReminderTitles: refreshReminderTitles
-        )
-        .padding(.top, 8)
-    } label: {
-        Label("Developer Tools", systemImage: "wrench.and.screwdriver")
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.secondary)
-    }
-}
-#endif
+            Section(
+                footer:
+                    Text("Debug-only actions for seeding, syncing, and widget refresh.")
+                    .font(.caption)
+            ) {
+                DisclosureGroup {
+                    HabitDetailDebugToolsSection(
+                        onSeedThirtyDays: seedThirtyDays,
+                        onReloadWidget: reloadWidget,
+                        onRefreshReminderTitles: refreshReminderTitles
+                    )
+                    .padding(.top, 8)
+                } label: {
+                    Label("Developer Tools", systemImage: "wrench.and.screwdriver")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
             }
-        
+#endif
+        }
+        .task {
+            await loadLinkedReminderCandidates()
+        }
         .navigationTitle(habit.name ?? "Habit")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingAddReminders) {
@@ -114,17 +116,21 @@ Section(footer:
                 Text(linkMetadataText(for: link))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)           }
+                    .lineLimit(1)
+            }
 
             Spacer()
 
-            Toggle("", isOn: Binding(
-                get: { link.isRequired },
-                set: { newValue in
-                    link.isRequired = newValue
-                    saveContext()
-                }
-            ))
+            Toggle(
+                "",
+                isOn: Binding(
+                    get: { link.isRequired },
+                    set: { newValue in
+                        link.isRequired = newValue
+                        saveContext()
+                    }
+                )
+            )
             .labelsHidden()
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -142,25 +148,42 @@ Section(footer:
             }
         }
     }
-    
+
     private func linkMetadataText(for link: HabitReminderLink) -> String {
         let requirement = link.isRequired ? "Required" : "Optional"
 
         guard
-            let identifier = link.reminderIdentifier,
-            let reminder = reminderStore.calendarItem(withIdentifier: identifier) as? EKReminder,
+            let reminder = resolvedReminder(for: link),
             let schedule = reminderScheduleSummary(reminder)
         else {
-            if let identifier = link.reminderIdentifier, !identifier.isEmpty {
-                let shortID = String(identifier.suffix(4)).uppercased()
-                return "\(requirement) · #\(shortID)"
-            }
             return requirement
         }
 
         return "\(requirement) · \(schedule)"
     }
-    
+
+    private func resolvedReminder(for link: HabitReminderLink) -> EKReminder? {
+        guard let storedID = linkStoredStableIdentifier(link) else {
+            return nil
+        }
+
+        if let direct = reminderStore.calendarItem(withIdentifier: storedID) as? EKReminder {
+            return direct
+        }
+
+        return loadedReminders.first { reminder in
+            if let stamped = stampedUUID(from: reminder), stamped == storedID {
+                return true
+            }
+
+            if let externalID = reminder.calendarItemExternalIdentifier, externalID == storedID {
+                return true
+            }
+
+            return reminder.calendarItemIdentifier == storedID
+        }
+    }
+
     private func reminderScheduleSummary(_ reminder: EKReminder) -> String? {
         if let recurrence = recurrenceSummary(for: reminder),
            let time = dueTimeSummary(for: reminder) {
@@ -288,6 +311,7 @@ Section(footer:
             }
 
             await MainActor.run {
+                loadedReminders = reminders
                 editingLink = link
                 editingReminder = match
                 editingReminderIsRequiredForGreenSquare = link.isRequired
@@ -351,6 +375,17 @@ Section(footer:
 
     // MARK: - EventKit helpers
 
+    @MainActor
+    private func loadLinkedReminderCandidates() async {
+        let granted = await requestReminderAccessIfNeeded()
+        guard granted else {
+            loadedReminders = []
+            return
+        }
+
+        loadedReminders = await fetchAllRemindersForEditing()
+    }
+
     private func requestReminderAccessIfNeeded() async -> Bool {
         let status = EKEventStore.authorizationStatus(for: .reminder)
 
@@ -363,8 +398,11 @@ Section(footer:
 
         case .notDetermined:
             if #available(iOS 17.0, *) {
-                do { return try await reminderStore.requestFullAccessToReminders() }
-                catch { return false }
+                do {
+                    return try await reminderStore.requestFullAccessToReminders()
+                } catch {
+                    return false
+                }
             } else {
                 return await withCheckedContinuation { cont in
                     reminderStore.requestAccess(to: .reminder) { granted, _ in
