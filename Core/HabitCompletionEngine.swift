@@ -447,10 +447,15 @@ enum HabitCompletionEngine {
     private static func requestRemindersAccessIfNeeded(store: EKEventStore) async -> Bool {
         let status = EKEventStore.authorizationStatus(for: .reminder)
         switch status {
-        case .authorized:
+        case .authorized, .fullAccess:
             return true
+
+        case .writeOnly:
+            return false
+
         case .denied, .restricted:
             return false
+
         case .notDetermined:
             if #available(iOS 17.0, *) {
                 do { return try await store.requestFullAccessToReminders() }
@@ -459,6 +464,7 @@ enum HabitCompletionEngine {
                 do { return try await store.requestAccess(to: .reminder) }
                 catch { return false }
             }
+
         @unknown default:
             return false
         }

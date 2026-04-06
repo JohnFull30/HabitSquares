@@ -7,6 +7,8 @@ struct Habit_TrackerApp: App {
 
     let persistenceController = PersistenceController.shared
 
+    @StateObject private var eventKitSyncCoordinator = EventKitSyncCoordinator()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -14,6 +16,10 @@ struct Habit_TrackerApp: App {
                     \.managedObjectContext,
                     persistenceController.container.viewContext
                 )
+                .environmentObject(eventKitSyncCoordinator)
+                .task {
+                    eventKitSyncCoordinator.startObserving()
+                }
                 .onAppear {
                     ReminderService.shared.requestAccessIfNeeded { granted in
                         print("Reminders access granted? \(granted)")
@@ -23,7 +29,8 @@ struct Habit_TrackerApp: App {
                     guard newPhase == .active else { return }
 
                     Task { @MainActor in
-                
+                        eventKitSyncCoordinator.refreshNow()
+
                         await ReminderMetadataRefresher.shared.refreshLinkTitles(
                             in: persistenceController.container.viewContext
                         )

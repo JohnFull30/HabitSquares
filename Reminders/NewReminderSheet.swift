@@ -1,10 +1,3 @@
-//
-//  NewReminderSheet.swift
-//  Habit Tracker
-//
-//  Created by John Fuller on 12/23/25.
-//
-
 import SwiftUI
 import EventKit
 
@@ -12,42 +5,59 @@ struct NewReminderSheet: View {
     let eventStore: EKEventStore
     let habitName: String
     let initialCalendarID: String?
-    let onCreate: (EKReminder, Bool) -> Void
+    let existingReminder: EKReminder?
+    let onSave: (EKReminder, Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
     @StateObject private var form: ReminderFormModel
 
     @State private var calendars: [EKCalendar] = []
-    @State private var isSaving: Bool = false
+    @State private var isSaving = false
     @State private var errorMessage: String?
 
     init(
         eventStore: EKEventStore,
         habitName: String,
         initialCalendarID: String?,
-        onCreate: @escaping (EKReminder, Bool) -> Void
+        existingReminder: EKReminder? = nil,
+        existingIsRequiredForGreenSquare: Bool = true,
+        onSave: @escaping (EKReminder, Bool) -> Void
     ) {
         self.eventStore = eventStore
         self.habitName = habitName
         self.initialCalendarID = initialCalendarID
-        self.onCreate = onCreate
+        self.existingReminder = existingReminder
+        self.onSave = onSave
 
-        _form = StateObject(
-            wrappedValue: ReminderFormModel(
-                title: "",
-                notes: "",
-                selectedCalendarID: initialCalendarID,
-                isRequiredForGreenSquare: true,
-                hasDueDate: false,
-                dueDate: .now,
-                repeatConfiguration: ReminderRepeatConfiguration(
-                    kind: .daily,
-                    dayInterval: 2,
-                    selectedWeekdays: [.monday]
+        if let existingReminder {
+            _form = StateObject(
+                wrappedValue: ReminderFormModel(
+                    reminder: existingReminder,
+                    isRequiredForGreenSquare: existingIsRequiredForGreenSquare
                 )
             )
-        )
+        } else {
+            _form = StateObject(
+                wrappedValue: ReminderFormModel(
+                    title: "",
+                    notes: "",
+                    selectedCalendarID: initialCalendarID,
+                    isRequiredForGreenSquare: true,
+                    hasDueDate: false,
+                    dueDate: .now,
+                    repeatConfiguration: ReminderRepeatConfiguration(
+                        kind: .daily,
+                        dayInterval: 2,
+                        selectedWeekdays: [.monday]
+                    )
+                )
+            )
+        }
+    }
+
+    private var isEditing: Bool {
+        existingReminder != nil || form.isEditing
     }
 
     private var selectedCalendar: EKCalendar? {
@@ -69,14 +79,14 @@ struct NewReminderSheet: View {
                     }
                 }
             }
-            .navigationTitle("New Reminder")
+            .navigationTitle(isEditing ? "Edit Reminder" : "New Reminder")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? "Saving…" : "Save") {
+                    Button(isSaving ? (isEditing ? "Updating…" : "Saving…") : (isEditing ? "Update" : "Save")) {
                         Task { await save() }
                     }
                     .disabled(
@@ -235,8 +245,11 @@ struct NewReminderSheet: View {
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
 
         let systemDefaultID = eventStore.defaultCalendarForNewReminders()?.calendarIdentifier
+        let existingReminderCalendarID = existingReminder?.calendar.calendarIdentifier
+
         let resolvedCalendarID =
-            cals.first(where: { $0.calendarIdentifier == initialCalendarID })?.calendarIdentifier
+            cals.first(where: { $0.calendarIdentifier == existingReminderCalendarID })?.calendarIdentifier
+            ?? cals.first(where: { $0.calendarIdentifier == initialCalendarID })?.calendarIdentifier
             ?? cals.first(where: { $0.calendarIdentifier == systemDefaultID })?.calendarIdentifier
             ?? cals.first(where: { $0.allowsContentModifications })?.calendarIdentifier
             ?? cals.first?.calendarIdentifier
@@ -252,7 +265,6 @@ struct NewReminderSheet: View {
 
     private func save() async {
         guard let calendar = selectedCalendar else { return }
-        guard let recurrenceRule = form.recurrenceRule() else { return }
         guard form.isValid else { return }
 
         await MainActor.run {
@@ -267,17 +279,26 @@ struct NewReminderSheet: View {
         }
 
         do {
-            let reminder = EKReminder(eventStore: eventStore)
+            let reminder = existingReminder ?? EKReminder(eventStore: eventStore)
+
             reminder.calendar = calendar
             reminder.title = form.trimmedTitle
-            reminder.notes = "Created by HabitSquares for habit: \(habitName)"
+
+            if form.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if existingReminder == nil {
+                    reminder.notes = "Created by HabitSquares for habit: \(habitName)"
+                }
+            } else {
+                reminder.notes = form.notes
+            }
+
             reminder.dueDateComponents = form.dueDateComponents()
-            reminder.recurrenceRules = [recurrenceRule]
+            reminder.recurrenceRules = [form.repeatConfiguration.makeRecurrenceRule()].compactMap { $0 }
 
             try eventStore.save(reminder, commit: true)
 
             await MainActor.run {
-                onCreate(reminder, form.isRequiredForGreenSquare)
+                onSave(reminder, form.isRequiredForGreenSquare)
                 dismiss()
             }
         } catch {
@@ -294,13 +315,13 @@ struct NewReminderSheet: View {
         case .authorized, .fullAccess:
             return true
 
+        case .writeOnly:
+            return false
+
         case .notDetermined:
             if #available(iOS 17.0, *) {
-                do {
-                    return try await eventStore.requestFullAccessToReminders()
-                } catch {
-                    return false
-                }
+                do { return try await eventStore.requestFullAccessToReminders() }
+                catch { return false }
             } else {
                 return await withCheckedContinuation { cont in
                     eventStore.requestAccess(to: .reminder) { granted, _ in
@@ -309,7 +330,7 @@ struct NewReminderSheet: View {
                 }
             }
 
-        case .writeOnly, .denied, .restricted:
+        case .denied, .restricted:
             return false
 
         @unknown default:

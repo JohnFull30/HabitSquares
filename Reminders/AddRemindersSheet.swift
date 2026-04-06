@@ -5,11 +5,13 @@ import CoreData
 struct AddRemindersSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var eventKitSyncCoordinator: EventKitSyncCoordinator
 
     let habit: NSManagedObject
 
     @State private var store = EKEventStore()
     @State private var showNewReminderSheet = false
+    @State private var isReloadingFromCoordinator = false
 
     private var habitName: String {
         (habit.value(forKey: "name") as? String) ?? "Habit"
@@ -44,7 +46,7 @@ struct AddRemindersSheet: View {
     @State private var filterMode: FilterMode = .suggested
     @State private var selectedCalendarID: String? = nil
 
-    // Flip this later if you decide one Apple Reminder can feed multiple habits
+    // Future-friendly policy switch
     private let reminderLinkPolicy: ReminderLinkPolicy = .oneHabitOnly
 
     // MARK: - Stamp format
@@ -153,6 +155,9 @@ struct AddRemindersSheet: View {
             .task {
                 await load()
             }
+            .onReceive(eventKitSyncCoordinator.$refreshTick) { _ in
+                reloadFromCoordinator()
+            }
             .sheet(isPresented: $showNewReminderSheet) {
                 NewReminderSheet(
                     eventStore: store,
@@ -161,6 +166,20 @@ struct AddRemindersSheet: View {
                 ) { newReminder, isRequired in
                     handleCreatedReminder(newReminder, isRequired: isRequired)
                 }
+            }
+        }
+    }
+
+    private func reloadFromCoordinator() {
+        guard !isReloadingFromCoordinator else { return }
+
+        isReloadingFromCoordinator = true
+
+        Task {
+            await load()
+
+            await MainActor.run {
+                isReloadingFromCoordinator = false
             }
         }
     }
@@ -236,10 +255,6 @@ struct AddRemindersSheet: View {
 
     // MARK: - Derived
 
-    /// HabitSquares eligibility rule for the browser:
-    /// - recurring only
-    /// - writable reminder list only
-    /// - non-empty title
     private var eligibleReminders: [EKReminder] {
         allReminders.filter(isEligibleReminderForHabitBrowser)
     }
@@ -382,7 +397,6 @@ struct AddRemindersSheet: View {
         return .available
     }
 
-    /// Collapse recurring instances / duplicates so the picker is clean.
     private func dedupeForPickerUI(_ reminders: [EKReminder]) -> [EKReminder] {
         let groups = Dictionary(grouping: reminders, by: { pickerIdentity(for: $0) })
 
@@ -526,6 +540,7 @@ struct AddRemindersSheet: View {
             }
         }
     }
+
 
     private func requestAccessIfNeeded() async -> Bool {
         let status = EKEventStore.authorizationStatus(for: .reminder)
@@ -677,6 +692,10 @@ struct AddRemindersSheet: View {
             try viewContext.save()
             await ReminderMetadataRefresher.shared.refreshLinkTitles(in: viewContext)
             HabitCompletionEngine.syncTodayFromReminders(in: viewContext, includeCompleted: true)
+
+            await MainActor.run {
+                eventKitSyncCoordinator.refreshNow()
+            }
         } catch {
             print("✗ AddRemindersSheet: Core Data save failed \(error)")
         }

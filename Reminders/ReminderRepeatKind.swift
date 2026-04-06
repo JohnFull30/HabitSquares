@@ -258,7 +258,7 @@ final class ReminderFormModel: ObservableObject {
         isRequiredForGreenSquare: Bool = true,
         hasDueDate: Bool = false,
         dueDate: Date = Date(),
-        repeatConfiguration: ReminderRepeatConfiguration = ReminderRepeatConfiguration(),
+        repeatConfiguration: ReminderRepeatConfiguration? = nil,
         existingReminderID: String? = nil
     ) {
         self.title = title
@@ -267,7 +267,7 @@ final class ReminderFormModel: ObservableObject {
         self.isRequiredForGreenSquare = isRequiredForGreenSquare
         self.hasDueDate = hasDueDate
         self.dueDate = dueDate
-        self.repeatConfiguration = repeatConfiguration
+        self.repeatConfiguration = repeatConfiguration ?? ReminderRepeatConfiguration()
         self.existingReminderID = existingReminderID
     }
 

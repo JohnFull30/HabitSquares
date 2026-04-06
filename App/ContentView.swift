@@ -114,7 +114,7 @@ struct ContentView: View {
                                             Button {
                                                 activeSheet = .editName(habit)
                                             } label: {
-                                                Label("Edit Habit Name", systemImage: "pencil")
+                                                Label("Edit Habit", systemImage: "pencil")
                                             }
 
                                             Button(role: .destructive) {

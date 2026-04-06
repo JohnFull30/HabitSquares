@@ -1,11 +1,19 @@
 import SwiftUI
 import CoreData
+import EventKit
 
 struct HabitDetailView: View {
     @ObservedObject var habit: Habit
+
     @Environment(\.managedObjectContext) private var context
+    @EnvironmentObject private var eventKitSyncCoordinator: EventKitSyncCoordinator
 
     @State private var showingAddReminders = false
+
+    @State private var reminderStore = EKEventStore()
+    @State private var editingReminder: EKReminder?
+    @State private var editingLink: HabitReminderLink?
+    @State private var editingReminderIsRequiredForGreenSquare = true
 
     private var links: [HabitReminderLink] {
         let set = (habit.reminderLinks as? Set<HabitReminderLink>) ?? []
@@ -31,11 +39,11 @@ struct HabitDetailView: View {
                     Label("Add Reminders", systemImage: "plus")
                 }
             }
-            
+
 #if DEBUG
-Section("Developer") {
-    DebugHabitToolsSection(habit: habit)
-}
+            Section("Developer") {
+                DebugHabitToolsSection(habit: habit)
+            }
 #endif
         }
         .navigationTitle(habit.name ?? "Habit")
@@ -43,6 +51,29 @@ Section("Developer") {
         .sheet(isPresented: $showingAddReminders) {
             AddRemindersSheet(habit: habit)
                 .environment(\.managedObjectContext, context)
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { editingReminder != nil },
+                set: { newValue in
+                    if !newValue {
+                        editingReminder = nil
+                        editingLink = nil
+                    }
+                }
+            )
+        ) {
+            if let editingReminder {
+                NewReminderSheet(
+                    eventStore: reminderStore,
+                    habitName: habit.name ?? "Habit",
+                    initialCalendarID: editingReminder.calendar.calendarIdentifier,
+                    existingReminder: editingReminder,
+                    existingIsRequiredForGreenSquare: editingReminderIsRequiredForGreenSquare
+                ) { updatedReminder, isRequired in
+                    handleEditedReminderSave(updatedReminder, isRequired: isRequired)
+                }
+            }
         }
     }
 
@@ -71,12 +102,164 @@ Section("Developer") {
             ))
             .labelsHidden()
         }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button {
+                beginEditing(link: link)
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            .tint(.blue)
+
+            Button(role: .destructive) {
+                deleteLinkedReminder(link)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
     }
 
     private func displayTitle(for link: HabitReminderLink) -> String {
         let t = (link.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if !t.isEmpty { return t }
         return "Reminder"
+    }
+
+    // MARK: - Editing
+
+    private func beginEditing(link: HabitReminderLink) {
+        Task {
+            let granted = await requestReminderAccessIfNeeded()
+            guard granted else { return }
+
+            guard let storedID = linkStoredStableIdentifier(link) else {
+                print("✗ HabitDetailView: no stored reminder identifier found on link")
+                return
+            }
+
+            let reminders = await fetchAllRemindersForEditing()
+
+            let match = reminders.first { reminder in
+                if let stamped = stampedUUID(from: reminder), stamped == storedID {
+                    return true
+                }
+
+                if let externalID = reminder.calendarItemExternalIdentifier, externalID == storedID {
+                    return true
+                }
+
+                return reminder.calendarItemIdentifier == storedID
+            }
+
+            guard let match else {
+                print("✗ HabitDetailView: could not resolve EventKit reminder for link ID \(storedID)")
+                return
+            }
+
+            await MainActor.run {
+                editingLink = link
+                editingReminder = match
+                editingReminderIsRequiredForGreenSquare = link.isRequired
+            }
+        }
+    }
+
+    private func handleEditedReminderSave(_ updatedReminder: EKReminder, isRequired: Bool) {
+        if let editingLink {
+            editingLink.isRequired = isRequired
+            editingLink.title = updatedReminder.title
+
+            if editingLink.entity.propertiesByName["required"] != nil {
+                editingLink.setValue(isRequired, forKey: "required")
+            }
+
+            if editingLink.entity.propertiesByName["calendarTitle"] != nil {
+                editingLink.setValue(updatedReminder.calendar.title, forKey: "calendarTitle")
+            }
+
+            do {
+                try context.save()
+            } catch {
+                print("✗ HabitDetailView: failed saving edited link metadata:", error.localizedDescription)
+            }
+        }
+
+        Task { @MainActor in
+            await ReminderMetadataRefresher.shared.refreshLinkTitles(in: context)
+            HabitCompletionEngine.syncTodayFromReminders(in: context, includeCompleted: true)
+            WidgetRefresh.push(context)
+            eventKitSyncCoordinator.refreshNow()
+
+            editingReminder = nil
+            editingLink = nil
+        }
+    }
+
+    // MARK: - EventKit helpers
+
+    private func requestReminderAccessIfNeeded() async -> Bool {
+        let status = EKEventStore.authorizationStatus(for: .reminder)
+
+        switch status {
+        case .authorized, .fullAccess:
+            return true
+
+        case .writeOnly:
+            return false
+
+        case .notDetermined:
+            if #available(iOS 17.0, *) {
+                do { return try await reminderStore.requestFullAccessToReminders() }
+                catch { return false }
+            } else {
+                return await withCheckedContinuation { cont in
+                    reminderStore.requestAccess(to: .reminder) { granted, _ in
+                        cont.resume(returning: granted)
+                    }
+                }
+            }
+
+        case .denied, .restricted:
+            return false
+
+        @unknown default:
+            return false
+        }
+    }
+
+    private func fetchAllRemindersForEditing() async -> [EKReminder] {
+        let calendars = reminderStore.calendars(for: .reminder)
+        let predicate = reminderStore.predicateForReminders(in: calendars)
+
+        return await withCheckedContinuation { cont in
+            reminderStore.fetchReminders(matching: predicate) { reminders in
+                cont.resume(returning: reminders ?? [])
+            }
+        }
+    }
+
+    private func stampedUUID(from reminder: EKReminder) -> String? {
+        guard let url = reminder.url else { return nil }
+        guard url.scheme?.lowercased() == "habitsquares" else { return nil }
+        guard url.host?.lowercased() == "reminder-link" else { return nil }
+
+        let raw = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return raw.isEmpty ? nil : raw
+    }
+
+    private func linkStoredStableIdentifier(_ link: HabitReminderLink) -> String? {
+        if let id = link.reminderIdentifier, !id.isEmpty {
+            return id
+        }
+
+        if let id = link.value(forKey: "reminderId") as? String, !id.isEmpty {
+            return id
+        }
+
+        if let id = link.value(forKey: "reminderID") as? String, !id.isEmpty {
+            return id
+        }
+
+        return nil
     }
 
     // MARK: - Delete
@@ -89,9 +272,17 @@ Section("Developer") {
         saveContext()
     }
 
+    private func deleteLinkedReminder(_ link: HabitReminderLink) {
+        context.delete(link)
+        saveContext()
+    }
+
     private func saveContext() {
         do {
             try context.save()
+            HabitCompletionEngine.syncTodayFromReminders(in: context, includeCompleted: true)
+            WidgetRefresh.push(context)
+            eventKitSyncCoordinator.refreshNow()
         } catch {
             print("❌ HabitDetailView: failed saving context: \(error)")
         }
