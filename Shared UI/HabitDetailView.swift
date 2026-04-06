@@ -42,9 +42,19 @@ struct HabitDetailView: View {
             }
 
 #if DEBUG
-            Section("Developer") {
-                DebugHabitToolsSection(habit: habit)
-            }
+Section {
+    DisclosureGroup {
+        DebugHabitToolsSection(habit: habit)
+            .padding(.top, 8)
+    } label: {
+        Label("Developer Tools", systemImage: "wrench.and.screwdriver")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+    }
+} footer: {
+    Text("Debug-only actions for seeding, syncing, and widget refresh.")
+        .font(.caption)
+}
 #endif
         }
         .navigationTitle(habit.name ?? "Habit")
