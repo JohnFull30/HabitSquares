@@ -91,24 +91,27 @@ struct HabitSquaresWidget: Widget {
             kind: kind,
             intent: HabitWidgetConfigurationIntent.self,
             provider: HabitSquaresProvider()
-        ) { entry in
-            ZStack {
-                HabitSquaresWidgetView(entry: entry)
+            ) { entry in
+                ZStack {
+                    HabitSquaresWidgetView(entry: entry)
 
-                #if DEBUG
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Text(entry.snapshot.updatedAt, style: .time)
-                            .font(.caption2)
-                            .opacity(0.6)
-                    }
+#if DEBUG
+VStack {
+    Spacer()
+    HStack {
+        Spacer()
+        Text(entry.snapshot.updatedAt, style: .time)
+            .font(.caption2)
+            .opacity(0.6)
+            .padding(.trailing, 20)
+            .padding(.bottom, 1)
+    }
+}
+#endif
                 }
-                .padding(4)
-                #endif
             }
-        }
+            
+        
         .configurationDisplayName("HabitSquares")
         .description("Your recent completions at a glance.")
         .supportedFamilies([.systemSmall, .systemMedium])
@@ -116,7 +119,7 @@ struct HabitSquaresWidget: Widget {
     }
 }
 
-// MARK: - Layout
+// MARK: - Grid Layout
 
 struct WidgetGridLayout {
     let count: Int

@@ -263,6 +263,26 @@ struct NewReminderSheet: View {
         }
     }
 
+    private func effectiveDueDateComponents() -> DateComponents? {
+        let calendar = Calendar.current
+
+        if form.hasDueDate {
+            return calendar.dateComponents(
+                [.year, .month, .day, .hour, .minute],
+                from: form.dueDate
+            )
+        }
+
+        if form.repeatConfiguration.makeRecurrenceRule() != nil {
+            return calendar.dateComponents(
+                [.year, .month, .day],
+                from: form.dueDate
+            )
+        }
+
+        return nil
+    }   
+
     private func save() async {
         guard let calendar = selectedCalendar else { return }
         guard form.isValid else { return }
@@ -292,7 +312,7 @@ struct NewReminderSheet: View {
                 reminder.notes = form.notes
             }
 
-            reminder.dueDateComponents = form.dueDateComponents()
+            reminder.dueDateComponents = effectiveDueDateComponents()
             reminder.recurrenceRules = [form.repeatConfiguration.makeRecurrenceRule()].compactMap { $0 }
 
             try eventStore.save(reminder, commit: true)
