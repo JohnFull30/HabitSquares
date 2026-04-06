@@ -8,8 +8,8 @@ struct HabitDetailView: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject private var eventKitSyncCoordinator: EventKitSyncCoordinator
 
-    @State private var showingAddReminders = false
 
+    @State private var showingAddReminders = false
     @State private var reminderStore = EKEventStore()
     @State private var editingReminder: EKReminder?
     @State private var editingLink: HabitReminderLink?
@@ -21,6 +21,7 @@ struct HabitDetailView: View {
         return set.sorted { ($0.title ?? "") < ($1.title ?? "") }
     }
 
+    
     var body: some View {
         List {
             Section("Linked Reminders") {
@@ -110,10 +111,10 @@ Section(footer:
                 Text(displayTitle(for: link))
                     .lineLimit(1)
 
-                Text(link.isRequired ? "Required" : "Optional")
+                Text(linkMetadataText(for: link))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            }
+                    .lineLimit(1)           }
 
             Spacer()
 
@@ -139,6 +140,113 @@ Section(footer:
             } label: {
                 Label("Delete", systemImage: "trash")
             }
+        }
+    }
+    
+    private func linkMetadataText(for link: HabitReminderLink) -> String {
+        let requirement = link.isRequired ? "Required" : "Optional"
+
+        guard
+            let identifier = link.reminderIdentifier,
+            let reminder = reminderStore.calendarItem(withIdentifier: identifier) as? EKReminder,
+            let schedule = reminderScheduleSummary(reminder)
+        else {
+            if let identifier = link.reminderIdentifier, !identifier.isEmpty {
+                let shortID = String(identifier.suffix(4)).uppercased()
+                return "\(requirement) · #\(shortID)"
+            }
+            return requirement
+        }
+
+        return "\(requirement) · \(schedule)"
+    }
+    
+    private func reminderScheduleSummary(_ reminder: EKReminder) -> String? {
+        if let recurrence = recurrenceSummary(for: reminder),
+           let time = dueTimeSummary(for: reminder) {
+            return "\(recurrence) \(time)"
+        }
+
+        if let recurrence = recurrenceSummary(for: reminder) {
+            return recurrence
+        }
+
+        if let time = dueTimeSummary(for: reminder) {
+            return time
+        }
+
+        return nil
+    }
+
+    private func dueTimeSummary(for reminder: EKReminder) -> String? {
+        guard let components = reminder.dueDateComponents else { return nil }
+
+        let calendar = Calendar.current
+
+        if let date = calendar.date(from: components) {
+            let formatter = DateFormatter()
+            formatter.locale = .current
+            formatter.timeStyle = .short
+            formatter.dateStyle = .none
+            return formatter.string(from: date)
+        }
+
+        if let hour = components.hour, let minute = components.minute {
+            var comps = DateComponents()
+            comps.hour = hour
+            comps.minute = minute
+
+            if let date = calendar.date(from: comps) {
+                let formatter = DateFormatter()
+                formatter.locale = .current
+                formatter.timeStyle = .short
+                formatter.dateStyle = .none
+                return formatter.string(from: date)
+            }
+        }
+
+        return nil
+    }
+
+    private func recurrenceSummary(for reminder: EKReminder) -> String? {
+        guard let rule = reminder.recurrenceRules?.first else { return nil }
+
+        switch rule.frequency {
+        case .daily:
+            return "Daily"
+
+        case .weekly:
+            let days = rule.daysOfTheWeek ?? []
+            let weekdayNumbers = days.map(\.dayOfTheWeek.rawValue).sorted()
+
+            if weekdayNumbers == [2, 3, 4, 5, 6] {
+                return "Mon–Fri"
+            }
+
+            if weekdayNumbers == [1, 7] {
+                return "Weekends"
+            }
+
+            if weekdayNumbers.count == 7 {
+                return "Daily"
+            }
+
+            if !weekdayNumbers.isEmpty {
+                let symbols = Calendar.current.shortWeekdaySymbols
+                let names = weekdayNumbers.map { symbols[$0 - 1] }
+                return names.joined(separator: ", ")
+            }
+
+            return "Weekly"
+
+        case .monthly:
+            return "Monthly"
+
+        case .yearly:
+            return "Yearly"
+
+        @unknown default:
+            return nil
         }
     }
 
