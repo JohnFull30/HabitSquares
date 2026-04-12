@@ -11,7 +11,10 @@ import WidgetKit
 #endif
 
 /// 30-day mini heatmap used inside the habit cards.
-/// Layout: 5 rows × 6 columns (30 days). Newest day ends bottom-right.
+/// Compact Monday-first calendar heatmap.
+/// - fixed 6 week columns
+/// - 7 weekday rows (Mon -> Sun)
+/// - full compact labels on both axes
 struct HabitHeatmapView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject var habit: Habit
@@ -19,11 +22,13 @@ struct HabitHeatmapView: View {
     // MARK: - Display tuning
 
     private let dayCount: Int = 30
-    private let columns: Int = 6
 
-    private let squareSize: CGFloat = 12
+    private let squareSize: CGFloat = 10
     private let squareCorner: CGFloat = 3
-    private let squareSpacing: CGFloat = 3
+    private let squareSpacing: CGFloat = 2
+
+    private let weekdayLabelWidth: CGFloat = 10
+    private let weekLabelHeight: CGFloat = 10
 
     private let cal = Calendar.autoupdatingCurrent
     private let palette = HeatmapPalette()
@@ -31,29 +36,27 @@ struct HabitHeatmapView: View {
     /// Keyed by `startOfDay` date.
     @State private var completionByDay: [Date: HabitCompletion] = [:]
 
-    // MARK: - Grid
-
-    private var gridColumns: [GridItem] {
-        Array(repeating: GridItem(.fixed(squareSize), spacing: squareSpacing), count: columns)
-    }
+    // MARK: - Date helpers
 
     private func dayKey(_ date: Date) -> Date {
         cal.startOfDay(for: date)
     }
 
-    /// idx: 0...dayCount-1 (oldest -> newest)
-    private func dateForIndex(_ idx: Int) -> Date {
-        let today = dayKey(.now)
-        let offset = (dayCount - 1) - idx
-        return cal.date(byAdding: .day, value: -offset, to: today)!
-    }
-
     private var rangeStart: Date {
-        dayKey(dateForIndex(0))
+        let today = dayKey(.now)
+        return cal.date(byAdding: .day, value: -(dayCount - 1), to: today)!
     }
 
     private var tomorrowStart: Date {
         cal.date(byAdding: .day, value: 1, to: dayKey(.now))!
+    }
+
+    private var heatmapColumns: [HeatmapWeekColumn] {
+        HabitHeatmapBuilder.build30DayGrid(
+            endingAt: .now,
+            completedDates: Set(completionByDay.keys),
+            calendar: cal
+        )
     }
 
     // MARK: - Body
@@ -64,15 +67,9 @@ struct HabitHeatmapView: View {
                 .font(.headline)
                 .lineLimit(1)
 
-            Text("Last 30 days")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            LazyVGrid(columns: gridColumns, spacing: squareSpacing) {
-                ForEach(0..<dayCount, id: \.self) { idx in
-                    let date = dateForIndex(idx)
-                    square(for: date)
-                }
+            VStack(alignment: .leading, spacing: 4) {
+                weekLabelsRow
+                heatmapGrid
             }
         }
         .task { loadCompletions() }
@@ -81,37 +78,102 @@ struct HabitHeatmapView: View {
         }
     }
 
-    // MARK: - Square rendering
+    // MARK: - Calendar layout
 
-    private func square(for date: Date) -> some View {
-        let key = dayKey(date)
-        let completion = completionByDay[key]
+    private var weekLabelsRow: some View {
+        HStack(alignment: .center, spacing: 4) {
+            Color.clear
+                .frame(width: weekdayLabelWidth, height: weekLabelHeight)
 
-        // TODO: replace with per-habit color when you add it (habit color -> base)
-        let base = Color.green
-
-        let fill = palette.color(
-            base: base,
-            completed: completion.map { Int($0.completedRequired) },
-            total: completion.map { Int($0.totalRequired) }
-        )
-
-        return RoundedRectangle(cornerRadius: squareCorner, style: .continuous)
-            .fill(fill)
-            .frame(width: squareSize, height: squareSize)
-            .accessibilityLabel(accessibilityLabel(for: date, completion: completion))
+            HStack(alignment: .center, spacing: squareSpacing) {
+                ForEach(heatmapColumns) { column in
+                    Text(weekNumberLabel(for: column.weekStart))
+                        .font(.system(size: 6, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: squareSize, height: weekLabelHeight, alignment: .center)
+                }
+            }
+        }
     }
 
-    private func accessibilityLabel(for date: Date, completion: HabitCompletion?) -> String {
+    private var heatmapGrid: some View {
+        HStack(alignment: .top, spacing: 4) {
+            weekdayLabelsColumn
+
+            HStack(alignment: .top, spacing: squareSpacing) {
+                ForEach(heatmapColumns) { column in
+                    VStack(spacing: squareSpacing) {
+                        ForEach(Array(column.cells.enumerated()), id: \.element.id) { _, cell in
+                            square(for: cell)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var weekdayLabelsColumn: some View {
+        VStack(alignment: .trailing, spacing: squareSpacing) {
+            ForEach(0..<7, id: \.self) { rowIndex in
+                Text(HabitHeatmapBuilder.weekdayLabel(for: rowIndex))
+                    .font(.system(size: 6, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: weekdayLabelWidth, height: squareSize, alignment: .trailing)
+            }
+        }
+    }
+
+    private func weekNumberLabel(for weekStart: Date) -> String {
+        var calendar = cal
+        calendar.firstWeekday = 2 // Monday
+        return "\(calendar.component(.weekOfYear, from: weekStart))"
+    }
+
+    // MARK: - Square rendering
+
+    @ViewBuilder
+    private func square(for cell: HeatmapDayCell) -> some View {
+        if cell.isPadding || cell.date == nil {
+            RoundedRectangle(cornerRadius: squareCorner, style: .continuous)
+                .fill(Color.clear)
+                .frame(width: squareSize, height: squareSize)
+        } else if let date = cell.date {
+            let key = dayKey(date)
+            let completion = completionByDay[key]
+
+            let base = Color.green
+
+            let fill = palette.color(
+                base: base,
+                completed: completion.map { Int($0.completedRequired) },
+                total: completion.map { Int($0.totalRequired) }
+            )
+
+            RoundedRectangle(cornerRadius: squareCorner, style: .continuous)
+                .fill(fill)
+                .overlay {
+                    if cell.isToday {
+                        RoundedRectangle(cornerRadius: squareCorner, style: .continuous)
+                            .stroke(Color.primary.opacity(0.45), lineWidth: 1)
+                    }
+                }
+                .frame(width: squareSize, height: squareSize)
+                .accessibilityLabel(accessibilityLabel(for: date, completion: completion, isToday: cell.isToday))
+        }
+    }
+
+    private func accessibilityLabel(for date: Date, completion: HabitCompletion?, isToday: Bool) -> String {
         let fmt = DateFormatter()
         fmt.dateStyle = .medium
         let d = fmt.string(from: date)
 
+        let todayPrefix = isToday ? "Today. " : ""
+
         if let completion {
             let status = completion.isComplete ? "Complete" : "Not complete"
-            return "\(d). \(status). \(completion.completedRequired) of \(completion.totalRequired) reminders done."
+            return "\(todayPrefix)\(d). \(status). \(completion.completedRequired) of \(completion.totalRequired) reminders done."
         } else {
-            return "\(d). No data."
+            return "\(todayPrefix)\(d). No data."
         }
     }
 
