@@ -24,6 +24,7 @@
 		527137EB2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137EA2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift */; };
 		52C58EC92F7097500063A687 /* ReminderMetadataRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C58EC82F7097500063A687 /* ReminderMetadataRefresher.swift */; };
 		52C865622F8C1E3F00313F31 /* HeatmapDayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C865612F8C1E3F00313F31 /* HeatmapDayCell.swift */; };
+		52C865662F8C2C1500313F31 /* CalendarHeatmapGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C865652F8C2C1500313F31 /* CalendarHeatmapGridView.swift */; };
 		52D1D70A2EFB0E5C00B3F91A /* AddHabitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6F32EFB0E5C00B3F91A /* AddHabitView.swift */; };
 		52D1D70B2EFB0E5C00B3F91A /* AddRemindersSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6F42EFB0E5C00B3F91A /* AddRemindersSheet.swift */; };
 		52D1D70D2EFB0E5C00B3F91A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6F72EFB0E5C00B3F91A /* ContentView.swift */; };
@@ -53,6 +54,8 @@
 		52D1D7492EFB625500B3F91A /* HabitID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7482EFB625500B3F91A /* HabitID.swift */; };
 		52D1D74A2EFB625500B3F91A /* HabitID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7482EFB625500B3F91A /* HabitID.swift */; };
 		52D1D74B2EFB72E700B3F91A /* WidgetDataWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7362EFB16FC00B3F91A /* WidgetDataWriter.swift */; };
+		52FAC0322F91986D0034A3C4 /* HeatmapDayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C865612F8C1E3F00313F31 /* HeatmapDayCell.swift */; };
+		52FAC0332F9198850034A3C4 /* CalendarHeatmapGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C865652F8C2C1500313F31 /* CalendarHeatmapGridView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -116,6 +119,7 @@
 		528904C52EF62EAB00479793 /* Habit Tracker WidgetExtensionDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Habit Tracker WidgetExtensionDebug.entitlements"; sourceTree = "<group>"; };
 		52C58EC82F7097500063A687 /* ReminderMetadataRefresher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderMetadataRefresher.swift; sourceTree = "<group>"; };
 		52C865612F8C1E3F00313F31 /* HeatmapDayCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapDayCell.swift; sourceTree = "<group>"; };
+		52C865652F8C2C1500313F31 /* CalendarHeatmapGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarHeatmapGridView.swift; sourceTree = "<group>"; };
 		52D1D6F32EFB0E5C00B3F91A /* AddHabitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddHabitView.swift; sourceTree = "<group>"; };
 		52D1D6F42EFB0E5C00B3F91A /* AddRemindersSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRemindersSheet.swift; sourceTree = "<group>"; };
 		52D1D6F72EFB0E5C00B3F91A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -318,6 +322,7 @@
 		52D1D73F2EFB536A00B3F91A /* Shared UI */ = {
 			isa = PBXGroup;
 			children = (
+				52C865652F8C2C1500313F31 /* CalendarHeatmapGridView.swift */,
 				52C865612F8C1E3F00313F31 /* HeatmapDayCell.swift */,
 				524461EC2EFF36A400537C6C /* HeatmapPalette.swift */,
 				52D1D6FA2EFB0E5C00B3F91A /* HabitCardStyle.swift */,
@@ -548,6 +553,7 @@
 				52D1D7102EFB0E5C00B3F91A /* HabitCompletionEngine.swift in Sources */,
 				525290BB2F1848AF00ED07F6 /* EditHabitSheet.swift in Sources */,
 				52D1D74A2EFB625500B3F91A /* HabitID.swift in Sources */,
+				52C865662F8C2C1500313F31 /* CalendarHeatmapGridView.swift in Sources */,
 				52D1D7112EFB0E5C00B3F91A /* HabitDetailView.swift in Sources */,
 				52D1D7122EFB0E5C00B3F91A /* HabitHeatmapView.swift in Sources */,
 				52D1D7132EFB0E5C00B3F91A /* HabitModel.xcdatamodel in Sources */,
@@ -588,10 +594,12 @@
 				52D1D7492EFB625500B3F91A /* HabitID.swift in Sources */,
 				524461F22EFF575300537C6C /* HabitSquaresWidgetView.swift in Sources */,
 				52D1D7432EFB623900B3F91A /* WidgetHabitStub.swift in Sources */,
+				52FAC0322F91986D0034A3C4 /* HeatmapDayCell.swift in Sources */,
 				52D1D7382EFB176400B3F91A /* HabitSquaresWidget.swift in Sources */,
 				524461F02EFF3C7F00537C6C /* HeatmapPalette.swift in Sources */,
 				52D1D74B2EFB72E700B3F91A /* WidgetDataWriter.swift in Sources */,
 				527137E92EFE0E4F001507E8 /* WidgetHabitEntity.swift in Sources */,
+				52FAC0332F9198850034A3C4 /* CalendarHeatmapGridView.swift in Sources */,
 				527137EB2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift in Sources */,
 				527137E72EFE0E46001507E8 /* HabitWidgetConfigurationIntent.swift in Sources */,
 				52D1D7462EFB624600B3F91A /* WidgetSharedStore.swift in Sources */,
