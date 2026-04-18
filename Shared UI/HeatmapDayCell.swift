@@ -36,125 +36,131 @@ struct HeatmapWeekColumn: Identifiable, Hashable {
 }
 
 enum HabitHeatmapBuilder {
-    private static let fixedWeekColumnCount = 6
-
     static func build30DayGrid(
-        endingAt endDate: Date = Date(),
+        endingAt endDate: Date,
         completedDates: Set<Date>,
-        calendar inputCalendar: Calendar = .current
+        calendar: Calendar = .current
     ) -> [HeatmapWeekColumn] {
-        var calendar = inputCalendar
-        calendar.firstWeekday = 2 // Monday
-
-        let normalizedEndDate = calendar.startOfDay(for: endDate)
-
-        guard let normalizedStartDate = calendar.date(byAdding: .day, value: -29, to: normalizedEndDate),
-              let endWeekStart = startOfWeek(for: normalizedEndDate, calendar: calendar)
-        else {
-            return []
-        }
-
-        let normalizedCompletedDates = Set(
-            completedDates.map { calendar.startOfDay(for: $0) }
+        buildGrid(
+            dayCount: 30,
+            endingAt: endDate,
+            completedDates: completedDates,
+            calendar: calendar
         )
+    }
 
-        guard let firstVisibleWeekStart = calendar.date(
+    static func buildGrid(
+        dayCount: Int,
+        endingAt endDate: Date,
+        completedDates: Set<Date>,
+        calendar: Calendar = .current
+    ) -> [HeatmapWeekColumn] {
+        guard dayCount > 0 else { return [] }
+
+        let normalizedEnd = calendar.startOfDay(for: endDate)
+
+        guard let rawStartDate = calendar.date(
             byAdding: .day,
-            value: -7 * (fixedWeekColumnCount - 1),
-            to: endWeekStart
+            value: -(dayCount - 1),
+            to: normalizedEnd
         ) else {
             return []
         }
 
+        // Expand the visible range to full Monday -> Sunday weeks
+        let startWeekday = mondayFirstWeekdayIndex(for: rawStartDate, calendar: calendar)
+        let expandedStartDate = calendar.date(
+            byAdding: .day,
+            value: -startWeekday,
+            to: rawStartDate
+        ) ?? rawStartDate
+
+        let endWeekday = mondayFirstWeekdayIndex(for: normalizedEnd, calendar: calendar)
+        let trailingDaysNeeded = 6 - endWeekday
+        let expandedEndDate = calendar.date(
+            byAdding: .day,
+            value: trailingDaysNeeded,
+            to: normalizedEnd
+        ) ?? normalizedEnd
+
+        let normalizedCompleted = Set(
+            completedDates.map { calendar.startOfDay(for: $0) }
+        )
+
+        var allDays: [Date] = []
+        var cursor = expandedStartDate
+
+        while cursor <= expandedEndDate {
+            allDays.append(cursor)
+
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else {
+                break
+            }
+            cursor = next
+        }
+
+        guard let firstRealDate = allDays.first else { return [] }
+
+        var columns: [HeatmapWeekColumn] = []
         let monthFormatter = DateFormatter()
         monthFormatter.calendar = calendar
         monthFormatter.dateFormat = "MMM"
 
-        let weekStarts: [Date] = (0..<fixedWeekColumnCount).compactMap { offset in
-            calendar.date(byAdding: .day, value: 7 * offset, to: firstVisibleWeekStart)
-        }
+        for chunkStart in stride(from: 0, to: allDays.count, by: 7) {
+            let chunkEnd = min(chunkStart + 7, allDays.count)
+            let weekDates = Array(allDays[chunkStart..<chunkEnd])
 
-        return weekStarts.enumerated().map { index, weekStart in
-            let cells: [HeatmapDayCell] = (0..<7).compactMap { weekdayOffset in
-                guard let cellDate = calendar.date(byAdding: .day, value: weekdayOffset, to: weekStart) else {
-                    return nil
-                }
-
-                let normalizedCellDate = calendar.startOfDay(for: cellDate)
-                let isInsideVisibleRange =
-                    normalizedCellDate >= normalizedStartDate &&
-                    normalizedCellDate <= normalizedEndDate
-
-                if !isInsideVisibleRange {
-                    return HeatmapDayCell(
-                        date: nil,
-                        isComplete: false,
-                        isToday: false,
-                        isPadding: true
-                    )
-                }
-
-                let isComplete = normalizedCompletedDates.contains(normalizedCellDate)
-                let isToday = calendar.isDate(normalizedCellDate, inSameDayAs: normalizedEndDate)
-
+            let cells = weekDates.map { day in
+                let normalizedDay = calendar.startOfDay(for: day)
                 return HeatmapDayCell(
-                    date: normalizedCellDate,
-                    isComplete: isComplete,
-                    isToday: isToday,
+                    date: normalizedDay,
+                    isComplete: normalizedCompleted.contains(normalizedDay),
+                    isToday: calendar.isDateInToday(normalizedDay),
                     isPadding: false
                 )
             }
 
-            let monthLabel = monthLabelForWeekColumn(
-                weekStart: weekStart,
-                columnIndex: index,
-                calendar: calendar,
-                formatter: monthFormatter
-            )
+            let weekStartDate = weekDates.first ?? firstRealDate
 
-            return HeatmapWeekColumn(
-                weekStart: weekStart,
-                cells: cells,
-                monthLabel: monthLabel
+            let monthLabel: String?
+            if let firstDateInColumn = weekDates.first {
+                let currentMonth = calendar.component(.month, from: firstDateInColumn)
+
+                if let previousFirstDate = columns.last?.cells.compactMap(\.date).first {
+                    let previousMonth = calendar.component(.month, from: previousFirstDate)
+                    monthLabel = previousMonth == currentMonth
+                        ? nil
+                        : monthFormatter.string(from: firstDateInColumn)
+                } else {
+                    monthLabel = monthFormatter.string(from: firstDateInColumn)
+                }
+            } else {
+                monthLabel = nil
+            }
+
+            columns.append(
+                HeatmapWeekColumn(
+                    weekStart: weekStartDate,
+                    cells: cells,
+                    monthLabel: monthLabel
+                )
             )
         }
+
+        return columns
     }
 
     static func weekdayLabel(for rowIndex: Int) -> String {
-        switch rowIndex {
-        case 0: return "M"
-        case 1: return "T"
-        case 2: return "W"
-        case 3: return "H"
-        case 4: return "F"
-        case 5: return "S"
-        case 6: return "U"
-        default: return ""
-        }
+        let labels = ["M", "T", "W", "H", "F", "S", "U"]
+        guard labels.indices.contains(rowIndex) else { return "" }
+        return labels[rowIndex]
     }
 
-    private static func startOfWeek(for date: Date, calendar: Calendar) -> Date? {
-        calendar.dateInterval(of: .weekOfYear, for: date)?.start
-    }
-
-    private static func monthLabelForWeekColumn(
-        weekStart: Date,
-        columnIndex: Int,
-        calendar: Calendar,
-        formatter: DateFormatter
-    ) -> String? {
-        if columnIndex == 0 {
-            return formatter.string(from: weekStart)
-        }
-
-        let previousWeek = calendar.date(byAdding: .day, value: -7, to: weekStart) ?? weekStart
-        let previousMonth = calendar.component(.month, from: previousWeek)
-        let currentMonth = calendar.component(.month, from: weekStart)
-
-        if previousMonth != currentMonth {
-            return formatter.string(from: weekStart)
-        }
-
-        return nil
+    private static func mondayFirstWeekdayIndex(
+        for date: Date,
+        calendar: Calendar
+    ) -> Int {
+        let weekday = calendar.component(.weekday, from: date)
+        return (weekday + 5) % 7
     }
 }

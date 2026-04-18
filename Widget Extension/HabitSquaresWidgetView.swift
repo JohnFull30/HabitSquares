@@ -1,14 +1,11 @@
-//
-//  HabitSquaresWidgetView.swift
-//  Habit Tracker WidgetExtension
-//
-
 import SwiftUI
 import WidgetKit
 
 struct HabitSquaresWidgetView: View {
     let entry: HabitSquaresEntry
     @Environment(\.widgetFamily) private var family
+
+    private let calendar = Calendar.autoupdatingCurrent
 
     private var statusText: String? {
         guard let payload = entry.selectedHabitPayload else { return nil }
@@ -31,7 +28,7 @@ struct HabitSquaresWidgetView: View {
     }
 
     private var titleText: String {
-        entry.configuration.habit?.name ?? "Select a Habit"
+        entry.configuration.habit?.name ?? "Active Habits"
     }
 
     private var completedDates: Set<Date> {
@@ -43,8 +40,9 @@ struct HabitSquaresWidgetView: View {
     }
 
     private var heatmapColumns: [HeatmapWeekColumn] {
-        HabitHeatmapBuilder.build30DayGrid(
-            endingAt: .now,
+        HabitHeatmapBuilder.buildGrid(
+            dayCount: 366,
+            endingAt: Date(),
             completedDates: completedDates,
             calendar: calendar
         )
@@ -55,11 +53,13 @@ struct HabitSquaresWidgetView: View {
             guard let date = Self.widgetDateFormatter.date(from: day.dateKey) else {
                 return nil
             }
-            return (calendar.startOfDay(for: date), day.isComplete)
+
+            return (
+                date: calendar.startOfDay(for: date),
+                isComplete: day.isComplete
+            )
         }
     }
-
-    private let calendar = Calendar.autoupdatingCurrent
 
     private static let widgetDateFormatter: DateFormatter = {
         let fmt = DateFormatter()
@@ -71,7 +71,7 @@ struct HabitSquaresWidgetView: View {
     }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: family == .systemSmall ? 4 : 6) {
+        VStack(alignment: .leading, spacing: family == .systemSmall ? 2 : 4) {
             Text(titleText)
                 .font(.headline)
                 .lineLimit(1)
@@ -84,12 +84,11 @@ struct HabitSquaresWidgetView: View {
                     .lineLimit(1)
             }
 
-            CalendarHeatmapGridView(
+            WidgetHeatmapGrid(
                 columns: heatmapColumns,
                 fillForDate: fillColor(for:)
             )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .scaleEffect(widgetScale, anchor: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .padding(widgetPadding)
         .containerBackground(.background, for: .widget)
@@ -97,20 +96,8 @@ struct HabitSquaresWidgetView: View {
     }
 
     private func fillColor(for date: Date) -> Color {
-        let key = calendar.startOfDay(for: date)
-        let isComplete = completedDates.contains(key)
-        return isComplete ? Color.green : Color.secondary.opacity(0.12)
-    }
-
-    private var widgetScale: CGFloat {
-        switch family {
-        case .systemSmall:
-            return 0.94
-        case .systemMedium:
-            return 1.0
-        default:
-            return 1.0
-        }
+        let normalized = calendar.startOfDay(for: date)
+        return completedDates.contains(normalized) ? .green : Color(.systemGray5)
     }
 
     private var widgetPadding: CGFloat {
@@ -119,6 +106,8 @@ struct HabitSquaresWidgetView: View {
             return 8
         case .systemMedium:
             return 10
+        case .systemLarge:
+            return 1
         default:
             return 8
         }

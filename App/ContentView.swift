@@ -5,7 +5,7 @@ import EventKit
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.scenePhase) private var scenePhase
-
+    
     // Core Data fetch for all habits (newest first)
     @FetchRequest(
         sortDescriptors: [
@@ -14,31 +14,31 @@ struct ContentView: View {
         animation: .default
     )
     private var habitResults: FetchedResults<Habit>
-
+    
     // Programmatic navigation (keeps LazyVGrid spacing stable)
     @State private var path = NavigationPath()
-
+    
     // Which sheet is currently active
     @State private var activeSheet: ActiveSheet?
     
     @State private var habitPendingDelete: Habit?
-
+    
     @AppStorage("lastHistoryBackfillDay") private var lastHistoryBackfillDay: Double = 0
-
+    
     // Newest-first array for grid rendering
     private var habitsByNewest: [Habit] {
         habitResults.sorted { lhs, rhs in
             (lhs.createdAt ?? .distantPast) > (rhs.createdAt ?? .distantPast)
         }
     }
-
+    
     // MARK: - Sheet routing
-
+    
     private enum ActiveSheet: Identifiable {
         case addHabit
         case reminders(Habit)
         case editName(Habit)
-
+        
         // Unique ID so SwiftUI can distinguish sheets
         var id: String {
             switch self {
@@ -52,30 +52,36 @@ struct ContentView: View {
             }
         }
     }
-
+    
     // MARK: - Body
-
+    
     var body: some View {
         NavigationStack(path: $path) {
             ZStack(alignment: .bottom) {
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
-
+                
                 // MAIN LAYOUT: header + content
                 VStack(alignment: .leading, spacing: 16) {
-
+                    
                     // HEADER – as high as possible
-                    HStack(alignment: .center) {
-                        Text("habitSquares")
-                            .font(.largeTitle.weight(.bold))
-
+                    HStack {
                         Spacer()
-
-             
+                        
+                        Text("habitSquares")
+                            .font(.system(size: 14, weight: .bold))
+                            .minimumScaleFactor(0.75)
+                            .lineLimit(1)
+                            .multilineTextAlignment(.center)
+                            .frame(width: 100, height: 100)
+                            .background(
+                                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                                    .fill(Color(.systemBackground))
+                            )
+                            .shadow(color: .black.opacity(0.08), radius: 18, x: 0, y: 8)
+                        
+                        Spacer()
                     }
-                    .hsCard()
-                    .padding(.horizontal)
                     .padding(.top, 4)
-
                     // CONTENT
                     Group {
                         if habitResults.isEmpty {
@@ -88,48 +94,45 @@ struct ContentView: View {
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
-                            ScrollView {
-                                LazyVGrid(
-                                    columns: [
-                                        GridItem(.flexible(), spacing: 16),
-                                        GridItem(.flexible(), spacing: 16)
-                                    ],
-                                    spacing: 16
-                                ) {
-                                    ForEach(habitsByNewest, id: \.objectID) { habit in
+                            ScrollView {LazyVGrid(
+                                columns: [
+                                    GridItem(.flexible(), spacing: 16),
+                                    GridItem(.flexible(), spacing: 16)
+                                ],
+                                spacing: 16
+                            ) {
+                                ForEach(habitsByNewest, id: \.objectID) { habit in
+                                    Button {
+                                        path.append(habit.objectID)
+                                    } label: {
+                                        HabitHeatmapView(habit: habit)
+                                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                                    }
+                                    .buttonStyle(HabitCardButtonStyle())
+                                    .contentShape(Rectangle())
+                                    .contextMenu {
                                         Button {
-                                            // Tap card → navigate to details (no NavigationLink layout side-effects)
-                                            path.append(habit.objectID)
+                                            activeSheet = .editName(habit)
                                         } label: {
-                                            HabitHeatmapView(habit: habit)
-                                                .hsCard()
+                                            Label("Edit Habit", systemImage: "pencil")
                                         }
-                                        .buttonStyle(HabitCardButtonStyle())
-                                        .contentShape(Rectangle())
-                                        .contextMenu {
-                                            Button {
-                                                activeSheet = .editName(habit)
-                                            } label: {
-                                                Label("Edit Habit", systemImage: "pencil")
-                                            }
 
-                                            Button(role: .destructive) {
-                                                habitPendingDelete = habit
-                                            } label: {
-                                                Label("Delete Habit", systemImage: "trash")
-                                            }
+                                        Button(role: .destructive) {
+                                            habitPendingDelete = habit
+                                        } label: {
+                                            Label("Delete Habit", systemImage: "trash")
                                         }
                                     }
                                 }
-                                .padding(.horizontal)
-                                .padding(.bottom, 100) // space so grid doesn't sit under the bottom button
+                            }
+                            .padding(.horizontal)                              .padding(.bottom, 100) // space so grid doesn't sit under the bottom button
                             }
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-
+                
                 // FLOATING BOTTOM "ADD HABIT" BUTTON
                 Button {
                     activeSheet = .addHabit
@@ -152,7 +155,7 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 32)
             }
-
+            
             // Navigate to HabitDetailView using Core Data objectID
             .navigationDestination(for: NSManagedObjectID.self) { objectID in
                 if let habit = viewContext.object(with: objectID) as? Habit {
@@ -161,14 +164,14 @@ struct ContentView: View {
                     Text("Habit not found")
                 }
             }
-
+            
             // SHEETS
             .sheet(item: $activeSheet) { sheet in
                 switch sheet {
                 case .addHabit:
                     AddHabitView()
                         .environment(\.managedObjectContext, viewContext)
-
+                    
                 case .reminders(let habit):
                     ReminderListView(habit: habit)
                         .environment(\.managedObjectContext, viewContext)
@@ -179,7 +182,7 @@ struct ContentView: View {
                     
                 }
             }
-
+            
             // MARK: - SYNC + LOGGING
             .onAppear {
                 logCoreDataHabits("onAppear")
@@ -202,14 +205,14 @@ struct ContentView: View {
             ) { habit in
                 deleteHabit(habit)
             }
-
+            
             // Hide default nav bar so our custom header can sit as high as possible
             .toolbar(.hidden, for: .navigationBar)
         }
     }
-
+    
     // MARK: - Habit card button style (press feedback)
-
+    
     struct HabitCardButtonStyle: ButtonStyle {
         func makeBody(configuration: Configuration) -> some View {
             configuration.label
@@ -223,41 +226,41 @@ struct ContentView: View {
                 .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
         }
     }
-
+    
     // MARK: - Sync Reminders → HabitCompletion
-
+    
     /// Lightweight: keeps "today" accurate.
     private func syncTodayOnly() {
         HabitCompletionEngine.syncTodayFromReminders(in: viewContext)
     }
-
+    
     /// Heavy: backfills 365 days, then also ensures today is correct.
     private func syncTodayAndHistoryIfNeeded(force: Bool = false) {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date()).timeIntervalSince1970
         let last = cal.startOfDay(for: Date(timeIntervalSince1970: lastHistoryBackfillDay)).timeIntervalSince1970
-
+        
         let needsBackfill = force || (last == 0) || (last != today)
-
+        
         print("🔄 backfill? \(needsBackfill)  force=\(force)  last=\(lastHistoryBackfillDay)")
-
+        
         if needsBackfill {
             lastHistoryBackfillDay = today
             HabitCompletionEngine.syncLast365DaysFromReminders(in: viewContext)
         }
-
+        
         // Always keep today correct
         syncTodayOnly()
     }
-
+    
     // MARK: - Delete habits from List (kept for future use)
-
+    
     private func deleteHabits(at offsets: IndexSet) {
         for index in offsets {
             let habit = habitResults[index]
             viewContext.delete(habit)
         }
-
+        
         do {
             try viewContext.save()
             print("✅ Deleted \(offsets.count) habit(s).")
@@ -265,9 +268,9 @@ struct ContentView: View {
             print("❌ Failed to delete habit(s): \(error)")
         }
     }
-
+    
     // MARK: - Delete a single habit from grid
-
+    
     private func deleteHabit(_ habit: Habit) {
         viewContext.delete(habit)
         do {
@@ -277,9 +280,9 @@ struct ContentView: View {
             print("❌ Failed to delete habit: \(error)")
         }
     }
-
+    
     // MARK: - Debug helpers
-
+    
     private func logCoreDataHabits(_ label: String) {
         print("===== Core Data habits (\(label)) =====")
         for habit in habitResults {

@@ -1,98 +1,96 @@
-//
-//  CalendarHeatmapGridView.swift
-//  Habit Tracker
-//
-//  Created by John Fuller on 4/12/26.
-//
-
-
 import SwiftUI
 
 struct CalendarHeatmapGridView: View {
     let columns: [HeatmapWeekColumn]
     let fillForDate: (Date) -> Color
 
-    private let squareSize: CGFloat = 10
-    private let squareCorner: CGFloat = 3
-    private let squareSpacing: CGFloat = 2
-
-    private let weekdayLabelWidth: CGFloat = 10
-    private let weekLabelHeight: CGFloat = 10
-
-    private let calendar = Calendar.autoupdatingCurrent
+    private let cellSize: CGFloat = 16
+    private let cellSpacing: CGFloat = 4
+    private let columnSpacing: CGFloat = 2
+    private let weekdayLabelWidth: CGFloat = 14
+    private let monthLabelHeight: CGFloat = 14
+    private let weekLabelHeight: CGFloat = 14
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            weekLabelsRow
-            heatmapGrid
+        HStack(alignment: .top, spacing: 5) {
+            weekdayLabels
+
+            VStack(alignment: .leading, spacing: 4) {
+                topLabels
+                gridColumns
+            }
         }
     }
 
-    private var weekLabelsRow: some View {
-        HStack(alignment: .center, spacing: 4) {
+    private var weekdayLabels: some View {
+        VStack(alignment: .trailing, spacing: cellSpacing) {
             Color.clear
-                .frame(width: weekdayLabelWidth, height: weekLabelHeight)
+                .frame(width: weekdayLabelWidth, height: monthLabelHeight + weekLabelHeight)
 
-            HStack(alignment: .center, spacing: squareSpacing) {
+            ForEach(0..<7, id: \.self) { rowIndex in
+                Text(HabitHeatmapBuilder.weekdayLabel(for: rowIndex))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(width: weekdayLabelWidth, height: cellSize, alignment: .trailing)
+            }
+        }
+    }
+
+    private var topLabels: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .bottom, spacing: columnSpacing) {
+                ForEach(Array(columns.enumerated()), id: \.1.id) { index, column in
+                    Text(
+                        HeatmapHeaderFormatter.monthMarker(
+                            for: column,
+                            at: index,
+                            in: columns
+                        )
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(width: cellSize, height: monthLabelHeight)
+                }
+            }
+
+            HStack(alignment: .bottom, spacing: columnSpacing) {
                 ForEach(columns) { column in
-                    Text(weekNumberLabel(for: column.weekStart))
-                        .font(.system(size: 6, weight: .medium))
+                    Text(HeatmapHeaderFormatter.isoWeekNumber(for: column))
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
-                        .frame(width: squareSize, height: weekLabelHeight, alignment: .center)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .frame(width: cellSize, height: weekLabelHeight)
                 }
             }
         }
     }
 
-    private var heatmapGrid: some View {
-        HStack(alignment: .top, spacing: 4) {
-            weekdayLabelsColumn
-
-            HStack(alignment: .top, spacing: squareSpacing) {
-                ForEach(columns) { column in
-                    VStack(spacing: squareSpacing) {
-                        ForEach(column.cells) { cell in
-                            square(for: cell)
+    private var gridColumns: some View {
+        HStack(alignment: .top, spacing: columnSpacing) {
+            ForEach(columns) { column in
+                VStack(spacing: cellSpacing) {
+                    ForEach(column.cells) { cell in
+                        if let date = cell.date, !cell.isPadding {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(fillForDate(date))
+                                .overlay {
+                                    if cell.isToday {
+                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                            .stroke(Color.secondary.opacity(0.75), lineWidth: 1.4)
+                                    }
+                                }
+                                .frame(width: cellSize, height: cellSize)
+                        } else {
+                            Color.clear
+                                .frame(width: cellSize, height: cellSize)
                         }
                     }
                 }
+                .frame(width: cellSize)
             }
         }
-    }
-
-    private var weekdayLabelsColumn: some View {
-        VStack(alignment: .trailing, spacing: squareSpacing) {
-            ForEach(0..<7, id: \.self) { rowIndex in
-                Text(HabitHeatmapBuilder.weekdayLabel(for: rowIndex))
-                    .font(.system(size: 6, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: weekdayLabelWidth, height: squareSize, alignment: .trailing)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func square(for cell: HeatmapDayCell) -> some View {
-        if cell.isPadding || cell.date == nil {
-            RoundedRectangle(cornerRadius: squareCorner, style: .continuous)
-                .fill(Color.clear)
-                .frame(width: squareSize, height: squareSize)
-        } else if let date = cell.date {
-            RoundedRectangle(cornerRadius: squareCorner, style: .continuous)
-                .fill(fillForDate(date))
-                .overlay {
-                    if cell.isToday {
-                        RoundedRectangle(cornerRadius: squareCorner, style: .continuous)
-                            .stroke(Color.primary.opacity(0.45), lineWidth: 1)
-                    }
-                }
-                .frame(width: squareSize, height: squareSize)
-        }
-    }
-
-    private func weekNumberLabel(for weekStart: Date) -> String {
-        var cal = calendar
-        cal.firstWeekday = 2 // Monday
-        return "\(cal.component(.weekOfYear, from: weekStart))"
     }
 }

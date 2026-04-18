@@ -1,27 +1,14 @@
-//
-//  HabitHeatmapView.swift
-//  Habit Tracker
-//
-
 import SwiftUI
 import CoreData
 
-#if DEBUG
-import WidgetKit
-#endif
-
-/// App-side wrapper around the shared calendar heatmap grid.
-/// This view fetches Core Data completions, builds the 30-day calendar columns,
-/// and hands pure color data into `CalendarHeatmapGridView`.
 struct HabitHeatmapView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject var habit: Habit
 
-    private let dayCount: Int = 30
+    private let dayCount: Int = 49
     private let cal = Calendar.autoupdatingCurrent
     private let palette = HeatmapPalette()
 
-    /// Keyed by startOfDay date
     @State private var completionByDay: [Date: HabitCompletion] = [:]
 
     private func dayKey(_ date: Date) -> Date {
@@ -38,7 +25,8 @@ struct HabitHeatmapView: View {
     }
 
     private var heatmapColumns: [HeatmapWeekColumn] {
-        HabitHeatmapBuilder.build30DayGrid(
+        HabitHeatmapBuilder.buildGrid(
+            dayCount: dayCount,
             endingAt: .now,
             completedDates: Set(completionByDay.keys),
             calendar: cal
@@ -46,7 +34,7 @@ struct HabitHeatmapView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(habit.name ?? "Habit")
                 .font(.headline)
                 .lineLimit(1)
@@ -55,8 +43,13 @@ struct HabitHeatmapView: View {
                 columns: heatmapColumns,
                 fillForDate: fillColor(for:)
             )
+            .frame(maxWidth: .infinity, alignment: .center)
         }
-        .task { loadCompletions() }
+        .padding(10)
+        .hsCard()
+        .task {
+            loadCompletions()
+        }
         .onChange(of: habit.objectID) { _, _ in
             loadCompletions()
         }
@@ -66,10 +59,12 @@ struct HabitHeatmapView: View {
         let key = dayKey(date)
         let completion = completionByDay[key]
 
-        let base = Color.green
+        if completion?.isComplete == true {
+            return .green
+        }
 
         return palette.color(
-            base: base,
+            base: Color(hex: habit.colorHex ?? "#22C55E"),
             completed: completion.map { Int($0.completedRequired) },
             total: completion.map { Int($0.totalRequired) }
         )
@@ -83,10 +78,10 @@ struct HabitHeatmapView: View {
             rangeStart as NSDate,
             tomorrowStart as NSDate
         )
+        req.sortDescriptors = [NSSortDescriptor(key: "date", ascending: true)]
 
         do {
             let results = try viewContext.fetch(req)
-
             var dict: [Date: HabitCompletion] = [:]
             dict.reserveCapacity(results.count)
 
@@ -98,7 +93,8 @@ struct HabitHeatmapView: View {
 
             completionByDay = dict
         } catch {
-            print("HabitHeatmapView: loadCompletions failed: \(error)")
+            print("HabitHeatmapView loadCompletions error:", error)
+            completionByDay = [:]
         }
     }
 }

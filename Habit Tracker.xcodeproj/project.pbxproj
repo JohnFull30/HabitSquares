@@ -56,6 +56,12 @@
 		52D1D74B2EFB72E700B3F91A /* WidgetDataWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7362EFB16FC00B3F91A /* WidgetDataWriter.swift */; };
 		52FAC0322F91986D0034A3C4 /* HeatmapDayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C865612F8C1E3F00313F31 /* HeatmapDayCell.swift */; };
 		52FAC0332F9198850034A3C4 /* CalendarHeatmapGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C865652F8C2C1500313F31 /* CalendarHeatmapGridView.swift */; };
+		52FAC06B2F919BCE0034A3C4 /* WidgetHeatmapGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52FAC06A2F919BCE0034A3C4 /* WidgetHeatmapGrid.swift */; };
+		52FAC06C2F919BCE0034A3C4 /* WidgetHeatmapGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52FAC06A2F919BCE0034A3C4 /* WidgetHeatmapGrid.swift */; };
+		52FAC0732F92F32B0034A3C4 /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52FAC0712F92F1230034A3C4 /* ColorHex.swift */; };
+		52FAC0742F92F32B0034A3C4 /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52FAC0712F92F1230034A3C4 /* ColorHex.swift */; };
+		52FAC0762F9333A30034A3C4 /* HeatmapHeaderFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52FAC0752F9333A30034A3C4 /* HeatmapHeaderFormatter.swift */; };
+		52FAC0772F9333A30034A3C4 /* HeatmapHeaderFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52FAC0752F9333A30034A3C4 /* HeatmapHeaderFormatter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -146,6 +152,9 @@
 		52D1D7422EFB623900B3F91A /* WidgetHabitStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHabitStub.swift; sourceTree = "<group>"; };
 		52D1D7452EFB624600B3F91A /* WidgetSharedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSharedStore.swift; sourceTree = "<group>"; };
 		52D1D7482EFB625500B3F91A /* HabitID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitID.swift; sourceTree = "<group>"; };
+		52FAC06A2F919BCE0034A3C4 /* WidgetHeatmapGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHeatmapGrid.swift; sourceTree = "<group>"; };
+		52FAC0712F92F1230034A3C4 /* ColorHex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorHex.swift; sourceTree = "<group>"; };
+		52FAC0752F9333A30034A3C4 /* HeatmapHeaderFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapHeaderFormatter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -322,6 +331,8 @@
 		52D1D73F2EFB536A00B3F91A /* Shared UI */ = {
 			isa = PBXGroup;
 			children = (
+				52FAC0752F9333A30034A3C4 /* HeatmapHeaderFormatter.swift */,
+				52FAC0712F92F1230034A3C4 /* ColorHex.swift */,
 				52C865652F8C2C1500313F31 /* CalendarHeatmapGridView.swift */,
 				52C865612F8C1E3F00313F31 /* HeatmapDayCell.swift */,
 				524461EC2EFF36A400537C6C /* HeatmapPalette.swift */,
@@ -336,6 +347,7 @@
 		52D1D7402EFB537700B3F91A /* Widget Shared */ = {
 			isa = PBXGroup;
 			children = (
+				52FAC06A2F919BCE0034A3C4 /* WidgetHeatmapGrid.swift */,
 				527137EF2EFE2274001507E8 /* WidgetSnapshot+Placeholder.swift */,
 				52D1D7482EFB625500B3F91A /* HabitID.swift */,
 				52D1D7452EFB624600B3F91A /* WidgetSharedStore.swift */,
@@ -367,7 +379,6 @@
 			buildPhases = (
 				523CBDE52ED010A900455486 /* Sources */,
 				523CBDE62ED010A900455486 /* Frameworks */,
-				523CBDE72ED010A900455486 /* Resources */,
 				523CBE402ED01E0000455486 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -502,13 +513,6 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		523CBDE72ED010A900455486 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		523CBDFB2ED010AA00455486 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -538,6 +542,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				52C865622F8C1E3F00313F31 /* HeatmapDayCell.swift in Sources */,
+				52FAC0732F92F32B0034A3C4 /* ColorHex.swift in Sources */,
 				52563E4B2F834F2C00C73C31 /* ReminderRepeatKind.swift in Sources */,
 				52302D962F0EA8A80069311F /* DebugHabitToolsSection.swift in Sources */,
 				52D1D7332EFB16E100B3F91A /* WidgetDay.swift in Sources */,
@@ -556,6 +561,8 @@
 				52C865662F8C2C1500313F31 /* CalendarHeatmapGridView.swift in Sources */,
 				52D1D7112EFB0E5C00B3F91A /* HabitDetailView.swift in Sources */,
 				52D1D7122EFB0E5C00B3F91A /* HabitHeatmapView.swift in Sources */,
+				52FAC0772F9333A30034A3C4 /* HeatmapHeaderFormatter.swift in Sources */,
+				52FAC06C2F919BCE0034A3C4 /* WidgetHeatmapGrid.swift in Sources */,
 				52D1D7132EFB0E5C00B3F91A /* HabitModel.xcdatamodel in Sources */,
 				524461ED2EFF36A400537C6C /* HeatmapPalette.swift in Sources */,
 				52D1D7372EFB16FC00B3F91A /* WidgetDataWriter.swift in Sources */,
@@ -590,9 +597,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				52FAC06B2F919BCE0034A3C4 /* WidgetHeatmapGrid.swift in Sources */,
+				52FAC0742F92F32B0034A3C4 /* ColorHex.swift in Sources */,
 				52D1D7342EFB16EE00B3F91A /* WidgetDay.swift in Sources */,
 				52D1D7492EFB625500B3F91A /* HabitID.swift in Sources */,
 				524461F22EFF575300537C6C /* HabitSquaresWidgetView.swift in Sources */,
+				52FAC0762F9333A30034A3C4 /* HeatmapHeaderFormatter.swift in Sources */,
 				52D1D7432EFB623900B3F91A /* WidgetHabitStub.swift in Sources */,
 				52FAC0322F91986D0034A3C4 /* HeatmapDayCell.swift in Sources */,
 				52D1D7382EFB176400B3F91A /* HabitSquaresWidget.swift in Sources */,
