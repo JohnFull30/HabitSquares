@@ -489,74 +489,69 @@ private struct HabitDetailDebugToolsSection: View {
     let onRefreshReminderTitles: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            Button(action: onSeedThirtyDays) {
-                debugActionRow(
-                    title: "Seed 30 Days",
-                    subtitle: "Fill recent history for testing",
-                    systemImage: "calendar.badge.plus"
-                )
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Developer Tools", systemImage: "wrench.and.screwdriver")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 10) {
+                Button(action: onSeedThirtyDays) {
+                    debugButtonRow(
+                        title: "Seed 30 Days",
+                        systemImage: "calendar.badge.plus"
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button(action: onReloadWidget) {
+                    debugButtonRow(
+                        title: "Reload Widget",
+                        systemImage: "arrow.clockwise"
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button(action: onRefreshReminderTitles) {
+                    debugButtonRow(
+                        title: "Refresh Reminder Titles",
+                        systemImage: "text.badge.checkmark"
+                    )
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
 
-            Divider()
-                .padding(.leading, 44)
-
-            Button(action: onReloadWidget) {
-                debugActionRow(
-                    title: "Reload Widget",
-                    subtitle: "Force today widget refresh",
-                    systemImage: "arrow.clockwise"
-                )
-            }
-            .buttonStyle(.plain)
-
-            Divider()
-                .padding(.leading, 44)
-
-            Button(action: onRefreshReminderTitles) {
-                debugActionRow(
-                    title: "Refresh Reminder Titles",
-                    subtitle: "Re-pull reminder names from EventKit",
-                    systemImage: "text.badge.checkmark"
-                )
-            }
-            .buttonStyle(.plain)
+            Text("Debug-only actions")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
+        .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(uiColor: .secondarySystemGroupedBackground))
         )
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    @ViewBuilder
-    private func debugActionRow(
+    private func debugButtonRow(
         title: String,
-        subtitle: String,
         systemImage: String
     ) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.secondary)
-                .frame(width: 20)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
 
             Spacer()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(uiColor: .systemBackground))
+        )
     }
 }
 #endif

@@ -3,14 +3,15 @@ import SwiftUI
 struct CalendarHeatmapGridView: View {
     let columns: [HeatmapWeekColumn]
     let fillForDate: (Date) -> Color
+    let compactLayout: Bool
 
-    private let cellSize: CGFloat = 16
-    private let cellSpacing: CGFloat = 4
-    private let columnSpacing: CGFloat = 2
-    private let weekdayLabelWidth: CGFloat = 14
-    private let monthLabelHeight: CGFloat = 14
-    private let weekLabelHeight: CGFloat = 14
-
+    private var cellSize: CGFloat { compactLayout ? 12 : 14 }
+    private var cellSpacing: CGFloat { compactLayout ? 2 : 3 }
+    private var columnSpacing: CGFloat { compactLayout ? 2 : 2 }
+    private var weekdayLabelWidth: CGFloat { compactLayout ? 12 : 14 }
+    private var monthLabelHeight: CGFloat { compactLayout ? 11 : 12 }
+    private var weekLabelHeight: CGFloat { compactLayout ? 11 : 12 }
+    
     var body: some View {
         HStack(alignment: .top, spacing: 5) {
             weekdayLabels
@@ -40,18 +41,26 @@ struct CalendarHeatmapGridView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .bottom, spacing: columnSpacing) {
                 ForEach(Array(columns.enumerated()), id: \.1.id) { index, column in
-                    Text(
-                        HeatmapHeaderFormatter.monthMarker(
-                            for: column,
-                            at: index,
-                            in: columns
-                        )
+                    let label = HeatmapHeaderFormatter.monthMarker(
+                        for: column,
+                        at: index,
+                        in: columns
                     )
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .frame(width: cellSize, height: monthLabelHeight)
+                    
+                    ZStack(alignment: .leading) {
+                        Color.clear
+                            .frame(width: cellSize, height: monthLabelHeight)
+                        
+                        if !label.isEmpty {
+                            Text(label)
+                                .font(.system(size: compactLayout ? 9 : 10, weight: .regular, design: .default))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                                .allowsTightening(true)
+                                .offset(x: -1)
+                        }
+                    }
                 }
             }
 
@@ -79,9 +88,12 @@ struct CalendarHeatmapGridView: View {
                                 .overlay {
                                     if cell.isToday {
                                         RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                            .stroke(Color.secondary.opacity(0.75), lineWidth: 1.4)
-                                    }
-                                }
+                                            .stroke(Color.primary.opacity(0.95), lineWidth: 2)
+
+                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                            .fill(Color.primary.opacity(0.08))
+                                            .padding(2.5)
+                                    }                                }
                                 .frame(width: cellSize, height: cellSize)
                         } else {
                             Color.clear

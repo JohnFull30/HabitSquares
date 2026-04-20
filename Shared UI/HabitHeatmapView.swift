@@ -5,7 +5,10 @@ struct HabitHeatmapView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject var habit: Habit
 
-    private let dayCount: Int = 49
+    let compactLayout: Bool
+
+    private let dayCount: Int = 56
+
     private let cal = Calendar.autoupdatingCurrent
     private let palette = HeatmapPalette()
 
@@ -41,11 +44,13 @@ struct HabitHeatmapView: View {
 
             CalendarHeatmapGridView(
                 columns: heatmapColumns,
-                fillForDate: fillColor(for:)
+                fillForDate: fillColor(for:),
+                compactLayout: compactLayout
             )
-            .frame(maxWidth: .infinity, alignment: .center)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, compactLayout ? -6 : 0)
         }
-        .padding(10)
+        .padding(.leading, compactLayout ? -2 : 0)
         .hsCard()
         .task {
             loadCompletions()
