@@ -58,7 +58,6 @@ struct CalendarHeatmapGridView: View {
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
                                 .allowsTightening(true)
-                                .offset(x: -1)
                         }
                     }
                 }

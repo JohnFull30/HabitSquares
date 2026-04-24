@@ -23,6 +23,8 @@
 		527137E92EFE0E4F001507E8 /* WidgetHabitEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137E82EFE0E4F001507E8 /* WidgetHabitEntity.swift */; };
 		527137EB2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527137EA2EFE0E56001507E8 /* WidgetHabitEntityQuery.swift */; };
 		52C58EC92F7097500063A687 /* ReminderMetadataRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C58EC82F7097500063A687 /* ReminderMetadataRefresher.swift */; };
+		52C692DE2F9C04DD00989C15 /* OnboardingPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C692DD2F9C04DD00989C15 /* OnboardingPage.swift */; };
+		52C692E02F9C04E600989C15 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C692DF2F9C04E600989C15 /* OnboardingView.swift */; };
 		52C865622F8C1E3F00313F31 /* HeatmapDayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C865612F8C1E3F00313F31 /* HeatmapDayCell.swift */; };
 		52C865662F8C2C1500313F31 /* CalendarHeatmapGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C865652F8C2C1500313F31 /* CalendarHeatmapGridView.swift */; };
 		52D1D70A2EFB0E5C00B3F91A /* AddHabitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6F32EFB0E5C00B3F91A /* AddHabitView.swift */; };
@@ -124,6 +126,8 @@
 		527137EF2EFE2274001507E8 /* WidgetSnapshot+Placeholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WidgetSnapshot+Placeholder.swift"; sourceTree = "<group>"; };
 		528904C52EF62EAB00479793 /* Habit Tracker WidgetExtensionDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Habit Tracker WidgetExtensionDebug.entitlements"; sourceTree = "<group>"; };
 		52C58EC82F7097500063A687 /* ReminderMetadataRefresher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderMetadataRefresher.swift; sourceTree = "<group>"; };
+		52C692DD2F9C04DD00989C15 /* OnboardingPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPage.swift; sourceTree = "<group>"; };
+		52C692DF2F9C04E600989C15 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		52C865612F8C1E3F00313F31 /* HeatmapDayCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapDayCell.swift; sourceTree = "<group>"; };
 		52C865652F8C2C1500313F31 /* CalendarHeatmapGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarHeatmapGridView.swift; sourceTree = "<group>"; };
 		52D1D6F32EFB0E5C00B3F91A /* AddHabitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddHabitView.swift; sourceTree = "<group>"; };
@@ -289,6 +293,8 @@
 		52D1D73C2EFB534B00B3F91A /* App */ = {
 			isa = PBXGroup;
 			children = (
+				52C692DF2F9C04E600989C15 /* OnboardingView.swift */,
+				52C692DD2F9C04DD00989C15 /* OnboardingPage.swift */,
 				52563E842F84132F00C73C31 /* ConfirmDeleteModifier.swift */,
 				52563E822F83539300C73C31 /* EventKitSyncCoordinator.swift */,
 				525290BA2F1848AE00ED07F6 /* EditHabitSheet.swift */,
@@ -560,8 +566,10 @@
 				52D1D74A2EFB625500B3F91A /* HabitID.swift in Sources */,
 				52C865662F8C2C1500313F31 /* CalendarHeatmapGridView.swift in Sources */,
 				52D1D7112EFB0E5C00B3F91A /* HabitDetailView.swift in Sources */,
+				52C692DE2F9C04DD00989C15 /* OnboardingPage.swift in Sources */,
 				52D1D7122EFB0E5C00B3F91A /* HabitHeatmapView.swift in Sources */,
 				52FAC0772F9333A30034A3C4 /* HeatmapHeaderFormatter.swift in Sources */,
+				52C692E02F9C04E600989C15 /* OnboardingView.swift in Sources */,
 				52FAC06C2F919BCE0034A3C4 /* WidgetHeatmapGrid.swift in Sources */,
 				52D1D7132EFB0E5C00B3F91A /* HabitModel.xcdatamodel in Sources */,
 				524461ED2EFF36A400537C6C /* HeatmapPalette.swift in Sources */,
