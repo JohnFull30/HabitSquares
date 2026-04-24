@@ -13,6 +13,9 @@ struct ContentView: View {
         animation: .default
     )
     private var habitResults: FetchedResults<Habit>
+    
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = true
+    @State private var showingHowItWorks = false
 
     @State private var path = NavigationPath()
     @State private var activeSheet: ActiveSheet?
@@ -201,8 +204,22 @@ struct ContentView: View {
             ) { habit in
                 deleteHabit(habit)
             }
-            .toolbar(.hidden, for: .navigationBar)
-        }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingHowItWorks = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                    }
+                    .accessibilityLabel("How HabitSquares works")
+                }
+            }
+            Button("Show Onboarding Again") {
+                hasSeenOnboarding = false
+            }
+            .sheet(isPresented: $showingHowItWorks) {
+                HowItWorksView()
+            }        }
     }
 
     struct HabitCardButtonStyle: ButtonStyle {

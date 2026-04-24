@@ -25,6 +25,7 @@
 		52C58EC92F7097500063A687 /* ReminderMetadataRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C58EC82F7097500063A687 /* ReminderMetadataRefresher.swift */; };
 		52C692DE2F9C04DD00989C15 /* OnboardingPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C692DD2F9C04DD00989C15 /* OnboardingPage.swift */; };
 		52C692E02F9C04E600989C15 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C692DF2F9C04E600989C15 /* OnboardingView.swift */; };
+		52C692E22F9C09D600989C15 /* HowItWorksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C692E12F9C09D600989C15 /* HowItWorksView.swift */; };
 		52C865622F8C1E3F00313F31 /* HeatmapDayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C865612F8C1E3F00313F31 /* HeatmapDayCell.swift */; };
 		52C865662F8C2C1500313F31 /* CalendarHeatmapGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C865652F8C2C1500313F31 /* CalendarHeatmapGridView.swift */; };
 		52D1D70A2EFB0E5C00B3F91A /* AddHabitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D6F32EFB0E5C00B3F91A /* AddHabitView.swift */; };
@@ -128,6 +129,7 @@
 		52C58EC82F7097500063A687 /* ReminderMetadataRefresher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderMetadataRefresher.swift; sourceTree = "<group>"; };
 		52C692DD2F9C04DD00989C15 /* OnboardingPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPage.swift; sourceTree = "<group>"; };
 		52C692DF2F9C04E600989C15 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		52C692E12F9C09D600989C15 /* HowItWorksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HowItWorksView.swift; sourceTree = "<group>"; };
 		52C865612F8C1E3F00313F31 /* HeatmapDayCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapDayCell.swift; sourceTree = "<group>"; };
 		52C865652F8C2C1500313F31 /* CalendarHeatmapGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarHeatmapGridView.swift; sourceTree = "<group>"; };
 		52D1D6F32EFB0E5C00B3F91A /* AddHabitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddHabitView.swift; sourceTree = "<group>"; };
@@ -293,6 +295,7 @@
 		52D1D73C2EFB534B00B3F91A /* App */ = {
 			isa = PBXGroup;
 			children = (
+				52C692E12F9C09D600989C15 /* HowItWorksView.swift */,
 				52C692DF2F9C04E600989C15 /* OnboardingView.swift */,
 				52C692DD2F9C04DD00989C15 /* OnboardingPage.swift */,
 				52563E842F84132F00C73C31 /* ConfirmDeleteModifier.swift */,
@@ -558,6 +561,7 @@
 				52563E852F84132F00C73C31 /* ConfirmDeleteModifier.swift in Sources */,
 				52D1D70D2EFB0E5C00B3F91A /* ContentView.swift in Sources */,
 				52D1D7312EFB0FB200B3F91A /* NewReminderSheet.swift in Sources */,
+				52C692E22F9C09D600989C15 /* HowItWorksView.swift in Sources */,
 				52563E832F83539300C73C31 /* EventKitSyncCoordinator.swift in Sources */,
 				52D1D70E2EFB0E5C00B3F91A /* Habit_TrackerApp.swift in Sources */,
 				52D1D70F2EFB0E5C00B3F91A /* HabitCardStyle.swift in Sources */,
