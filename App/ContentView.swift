@@ -13,7 +13,7 @@ struct ContentView: View {
         animation: .default
     )
     private var habitResults: FetchedResults<Habit>
-    
+
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = true
     @State private var showingHowItWorks = false
 
@@ -50,7 +50,8 @@ struct ContentView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ZStack(alignment: .bottom) {
-                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+                Color(uiColor: .systemGroupedBackground)
+                    .ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
@@ -79,88 +80,17 @@ struct ContentView: View {
 
                     Group {
                         if habitResults.isEmpty {
-                            VStack(spacing: 12) {
-                                Text("No habits yet.")
-                                    .font(.headline)
-
-                                Text("Tap the button below to add your first habit.")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            emptyStateView
                         } else {
-                            GeometryReader { geo in
-                                let horizontalPadding: CGFloat = 16
-                                let spacing: CGFloat = 12
-                                let availableWidth = geo.size.width - (horizontalPadding * 2) - spacing
-                                let cardWidth = floor(availableWidth / 2)
-                                let compactCards = cardWidth < 185
-
-                                ScrollView {
-                                    LazyVGrid(
-                                        columns: [
-                                            GridItem(.fixed(cardWidth), spacing: spacing),
-                                            GridItem(.fixed(cardWidth), spacing: spacing)
-                                        ],
-                                        spacing: spacing
-                                    ) {
-                                        ForEach(habitsByNewest, id: \.objectID) { habit in
-                                            Button {
-                                                path.append(habit.objectID)
-                                            } label: {
-                                                HabitHeatmapView(
-                                                    habit: habit,
-                                                    compactLayout: compactCards
-                                                )
-                                                .frame(width: cardWidth, alignment: .topLeading)
-                                            }
-                                            .buttonStyle(HabitCardButtonStyle())
-                                            .contentShape(Rectangle())
-                                            .contextMenu {
-                                                Button {
-                                                    activeSheet = .editName(habit)
-                                                } label: {
-                                                    Label("Edit Habit", systemImage: "pencil")
-                                                }
-
-                                                Button(role: .destructive) {
-                                                    habitPendingDelete = habit
-                                                } label: {
-                                                    Label("Delete Habit", systemImage: "trash")
-                                                }
-                                            }
-                                        }
-                                    }
-                                    .padding(.horizontal, horizontalPadding)
-                                    .padding(.bottom, 100)
-                                }
-                            }
+                            habitsGridView
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
-                Button {
-                    activeSheet = .addHabit
-                } label: {
-                    Label("Add Habit", systemImage: "plus")
-                        .font(.headline)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(
-                            Capsule()
-                                .fill(Color.accentColor)
-                        )
-                        .foregroundColor(.white)
-                        .shadow(
-                            color: .black.opacity(0.15),
-                            radius: 10,
-                            x: 0,
-                            y: 4
-                        )
-                }
-                .padding(.bottom, 32)
+                addHabitButton
+                    .padding(.bottom, 32)
             }
             .navigationDestination(for: NSManagedObjectID.self) { objectID in
                 if let habit = viewContext.object(with: objectID) as? Habit {
@@ -183,6 +113,9 @@ struct ContentView: View {
                     EditHabitSheet(habit: habit)
                         .environment(\.managedObjectContext, viewContext)
                 }
+            }
+            .sheet(isPresented: $showingHowItWorks) {
+                HowItWorksView()
             }
             .onAppear {
                 logCoreDataHabits("onAppear")
@@ -214,12 +147,108 @@ struct ContentView: View {
                     .accessibilityLabel("How HabitSquares works")
                 }
             }
+        }
+    }
+
+    private var emptyStateView: some View {
+        VStack(spacing: 14) {
+            Spacer()
+
+            Text("No habits yet.")
+                .font(.headline)
+
+            Text("Tap the button below to add your first habit.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Text("Create a habit first. You can link Apple Reminders during setup.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+
             Button("Show Onboarding Again") {
                 hasSeenOnboarding = false
             }
-            .sheet(isPresented: $showingHowItWorks) {
-                HowItWorksView()
-            }        }
+            .font(.footnote)
+            .padding(.top, 6)
+
+            Spacer()
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var habitsGridView: some View {
+        GeometryReader { geo in
+            let horizontalPadding: CGFloat = 16
+            let spacing: CGFloat = 12
+            let availableWidth = geo.size.width - (horizontalPadding * 2) - spacing
+            let cardWidth = floor(availableWidth / 2)
+            let compactCards = cardWidth < 185
+
+            ScrollView {
+                LazyVGrid(
+                    columns: [
+                        GridItem(.fixed(cardWidth), spacing: spacing),
+                        GridItem(.fixed(cardWidth), spacing: spacing)
+                    ],
+                    spacing: spacing
+                ) {
+                    ForEach(habitsByNewest, id: \.objectID) { habit in
+                        Button {
+                            path.append(habit.objectID)
+                        } label: {
+                            HabitHeatmapView(
+                                habit: habit,
+                                compactLayout: compactCards
+                            )
+                            .frame(width: cardWidth, alignment: .topLeading)
+                        }
+                        .buttonStyle(HabitCardButtonStyle())
+                        .contentShape(Rectangle())
+                        .contextMenu {
+                            Button {
+                                activeSheet = .editName(habit)
+                            } label: {
+                                Label("Edit Habit", systemImage: "pencil")
+                            }
+
+                            Button(role: .destructive) {
+                                habitPendingDelete = habit
+                            } label: {
+                                Label("Delete Habit", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, horizontalPadding)
+                .padding(.bottom, 100)
+            }
+        }
+    }
+
+    private var addHabitButton: some View {
+        Button {
+            activeSheet = .addHabit
+        } label: {
+            Label("Add Habit", systemImage: "plus")
+                .font(.headline)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(
+                    Capsule()
+                        .fill(Color.accentColor)
+                )
+                .foregroundColor(.white)
+                .shadow(
+                    color: .black.opacity(0.15),
+                    radius: 10,
+                    x: 0,
+                    y: 4
+                )
+        }
     }
 
     struct HabitCardButtonStyle: ButtonStyle {

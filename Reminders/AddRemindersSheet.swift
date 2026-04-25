@@ -10,8 +10,11 @@ struct AddRemindersSheet: View {
     let habit: NSManagedObject
 
     @State private var store = EKEventStore()
+    @StateObject private var accessCoordinator = ReminderAccessCoordinator()
+
     @State private var showNewReminderSheet = false
     @State private var isReloadingFromCoordinator = false
+    @State private var hasAttemptedAccessRequest = false
 
     private var habitName: String {
         (habit.value(forKey: "name") as? String) ?? "Habit"
@@ -20,13 +23,11 @@ struct AddRemindersSheet: View {
     @State private var allReminders: [EKReminder] = []
     @State private var query: String = ""
 
-    // Keys for selection
     @State private var selectedKeys: Set<String> = []
     @State private var linkedToThisHabitStableUUIDs: Set<String> = []
     @State private var linkedAnywhereStableUUIDs: Set<String> = []
     @State private var requiredKeys: Set<String> = []
 
-    // Filters
     private enum FilterMode: String, CaseIterable {
         case suggested = "Suggested"
         case all = "All"
@@ -46,11 +47,8 @@ struct AddRemindersSheet: View {
     @State private var filterMode: FilterMode = .suggested
     @State private var selectedCalendarID: String? = nil
 
-    // Future-friendly policy switch
     private let reminderLinkPolicy: ReminderLinkPolicy = .oneHabitOnly
 
-    // MARK: - Stamp format
-    // habitsquares://reminder-link/<uuid>
     private let stampScheme = "habitsquares"
     private let stampHost = "reminder-link"
 
@@ -73,6 +71,62 @@ struct AddRemindersSheet: View {
 
     var body: some View {
         NavigationStack {
+            content
+                .navigationTitle("Add Reminders")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
+                    }
+
+                    if accessCoordinator.accessState == .authorized {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Menu {
+                                Picker("Filter", selection: $filterMode) {
+                                    ForEach(FilterMode.allCases, id: \.self) { mode in
+                                        Text(mode.rawValue).tag(mode)
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "line.3.horizontal.decrease.circle")
+                                    .symbolRenderingMode(.hierarchical)
+                            }
+                            .accessibilityLabel("Filter")
+                        }
+
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Save") {
+                                Task {
+                                    await saveLinksAsync()
+                                    dismiss()
+                                }
+                            }
+                            .disabled(selectedKeys.isEmpty)
+                        }
+                    }
+                }
+                .task {
+                    await prepareReminderAccessAndData()
+                }
+                .onReceive(eventKitSyncCoordinator.$refreshTick) { _ in
+                    guard accessCoordinator.accessState == .authorized else { return }
+                    reloadFromCoordinator()
+                }
+                .sheet(isPresented: $showNewReminderSheet) {
+                    NewReminderSheet(
+                        eventStore: store,
+                        habitName: habitName,
+                        initialCalendarID: selectedCalendarID
+                    ) { newReminder, isRequired in
+                        handleCreatedReminder(newReminder, isRequired: isRequired)
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch accessCoordinator.accessState {
+        case .authorized:
             VStack(spacing: 12) {
                 glassHeader
 
@@ -122,52 +176,40 @@ struct AddRemindersSheet: View {
                 }
                 .listStyle(.plain)
             }
-            .navigationTitle("Add Reminders")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
 
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Picker("Filter", selection: $filterMode) {
-                            ForEach(FilterMode.allCases, id: \.self) { mode in
-                                Text(mode.rawValue).tag(mode)
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                            .symbolRenderingMode(.hierarchical)
-                    }
-                    .accessibilityLabel("Filter")
-                }
+        case .denied:
+            ReminderPermissionDeniedView()
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        Task {
-                            await saveLinksAsync()
-                            dismiss()
-                        }
-                    }
-                    .disabled(selectedKeys.isEmpty)
-                }
+        case .unknown:
+            VStack(spacing: 16) {
+                ProgressView()
+                Text("Checking Reminders access…")
+                    .foregroundStyle(.secondary)
             }
-            .task {
-                await load()
-            }
-            .onReceive(eventKitSyncCoordinator.$refreshTick) { _ in
-                reloadFromCoordinator()
-            }
-            .sheet(isPresented: $showNewReminderSheet) {
-                NewReminderSheet(
-                    eventStore: store,
-                    habitName: habitName,
-                    initialCalendarID: selectedCalendarID
-                ) { newReminder, isRequired in
-                    handleCreatedReminder(newReminder, isRequired: isRequired)
-                }
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding()
         }
+    }
+
+    private func prepareReminderAccessAndData() async {
+        accessCoordinator.refreshStatus()
+
+        if accessCoordinator.accessState == .unknown && !hasAttemptedAccessRequest {
+            hasAttemptedAccessRequest = true
+            await accessCoordinator.requestAccess()
+        }
+
+        guard accessCoordinator.accessState == .authorized else {
+            await MainActor.run {
+                allReminders = []
+                selectedKeys = []
+                requiredKeys = []
+                selectedCalendarID = nil
+            }
+            return
+        }
+
+        await loadAuthorizedData()
     }
 
     private func reloadFromCoordinator() {
@@ -176,15 +218,13 @@ struct AddRemindersSheet: View {
         isReloadingFromCoordinator = true
 
         Task {
-            await load()
+            await loadAuthorizedData()
 
             await MainActor.run {
                 isReloadingFromCoordinator = false
             }
         }
     }
-
-    // MARK: - Glass header
 
     private var glassHeader: some View {
         VStack(spacing: 10) {
@@ -252,8 +292,6 @@ struct AddRemindersSheet: View {
         .padding(.horizontal)
         .padding(.top, 4)
     }
-
-    // MARK: - Derived
 
     private var eligibleReminders: [EKReminder] {
         allReminders.filter(isEligibleReminderForHabitBrowser)
@@ -430,8 +468,6 @@ struct AddRemindersSheet: View {
         return "id:\(r.calendarItemIdentifier)"
     }
 
-    // MARK: - UI Row
-
     private func reminderRow(_ r: EKReminder) -> some View {
         let selectionKey = stableIdentifierToStore(for: r)
         let state = rowState(for: r)
@@ -517,12 +553,7 @@ struct AddRemindersSheet: View {
         }
     }
 
-    // MARK: - Load
-
-    private func load() async {
-        let ok = await requestAccessIfNeeded()
-        guard ok else { return }
-
+    private func loadAuthorizedData() async {
         let reminders = await fetchAllReminders()
 
         await MainActor.run {
@@ -541,26 +572,6 @@ struct AddRemindersSheet: View {
         }
     }
 
-
-    private func requestAccessIfNeeded() async -> Bool {
-        let status = EKEventStore.authorizationStatus(for: .reminder)
-
-        switch status {
-        case .authorized, .fullAccess:
-            return true
-
-        case .notDetermined:
-            return await withCheckedContinuation { cont in
-                store.requestFullAccessToReminders { granted, _ in
-                    cont.resume(returning: granted)
-                }
-            }
-
-        default:
-            return false
-        }
-    }
-
     private func fetchAllReminders() async -> [EKReminder] {
         let calendars = store.calendars(for: .reminder)
         let predicate = store.predicateForReminders(in: calendars)
@@ -571,8 +582,6 @@ struct AddRemindersSheet: View {
             }
         }
     }
-
-    // MARK: - Existing links
 
     private func hydrateAlreadyLinked() {
         guard let linkEntityName = guessLinkEntityName(in: viewContext),
@@ -618,8 +627,6 @@ struct AddRemindersSheet: View {
 
         return keys
     }
-
-    // MARK: - Save (stamping + Core Data)
 
     private func saveLinksAsync() async {
         guard let linkEntityName = guessLinkEntityName(in: viewContext) else {
@@ -701,8 +708,6 @@ struct AddRemindersSheet: View {
         }
     }
 
-    // MARK: - Stamping helpers
-
     private func stampedUUID(from reminder: EKReminder) -> String? {
         guard let url = reminder.url else { return nil }
         guard url.scheme?.lowercased() == stampScheme else { return nil }
@@ -722,8 +727,6 @@ struct AddRemindersSheet: View {
         return uuid
     }
 
-    // MARK: - Link fetch (NO Habit.links)
-
     private func fetchLinks(
         for habit: NSManagedObject,
         linkEntityName: String,
@@ -735,15 +738,11 @@ struct AddRemindersSheet: View {
         return (try? context.fetch(req)) ?? []
     }
 
-    // MARK: - Stable identifier (for selection UI)
-
     private func stableIdentifierToStore(for r: EKReminder) -> String {
         if let stamped = stampedUUID(from: r) { return stamped }
         if let ext = r.calendarItemExternalIdentifier, !ext.isEmpty { return ext }
         return r.calendarItemIdentifier
     }
-
-    // MARK: - Model introspection
 
     private func findRelationshipKey(
         entityName: String,
@@ -783,8 +782,6 @@ struct AddRemindersSheet: View {
         })?.name
     }
 }
-
-// MARK: - Safe KVC helpers
 
 private extension NSManagedObject {
     func valueIfExists(forKey key: String) -> Any? {

@@ -11,10 +11,12 @@ struct NewReminderSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @StateObject private var form: ReminderFormModel
+    @StateObject private var accessCoordinator = ReminderAccessCoordinator()
 
     @State private var calendars: [EKCalendar] = []
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var hasAttemptedAccessRequest = false
 
     init(
         eventStore: EKEventStore,
@@ -67,6 +69,36 @@ struct NewReminderSheet: View {
 
     var body: some View {
         NavigationStack {
+            content
+                .navigationTitle(isEditing ? "Edit Reminder" : "New Reminder")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
+                    }
+
+                    if accessCoordinator.accessState == .authorized {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(isSaving ? (isEditing ? "Updating…" : "Saving…") : (isEditing ? "Update" : "Save")) {
+                                Task { await save() }
+                            }
+                            .disabled(
+                                isSaving ||
+                                !form.isValid ||
+                                selectedCalendar == nil
+                            )
+                        }
+                    }
+                }
+                .task {
+                    await prepareReminderAccessAndData()
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch accessCoordinator.accessState {
+        case .authorized:
             Form {
                 reminderSection
                 whereSection
@@ -79,26 +111,18 @@ struct NewReminderSheet: View {
                     }
                 }
             }
-            .navigationTitle(isEditing ? "Edit Reminder" : "New Reminder")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? (isEditing ? "Updating…" : "Saving…") : (isEditing ? "Update" : "Save")) {
-                        Task { await save() }
-                    }
-                    .disabled(
-                        isSaving ||
-                        !form.isValid ||
-                        selectedCalendar == nil
-                    )
-                }
+        case .denied:
+            ReminderPermissionDeniedView()
+
+        case .unknown:
+            VStack(spacing: 16) {
+                ProgressView()
+                Text("Checking Reminders access…")
+                    .foregroundStyle(.secondary)
             }
-            .task {
-                await loadCalendars()
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding()
         }
     }
 
@@ -230,17 +254,30 @@ struct NewReminderSheet: View {
         )
     }
 
-    // MARK: - EventKit
+    // MARK: - Access + EventKit
 
-    private func loadCalendars() async {
-        let ok = await requestRemindersAccessIfNeeded()
-        guard ok else {
+    private func prepareReminderAccessAndData() async {
+        accessCoordinator.refreshStatus()
+
+        if accessCoordinator.accessState == .unknown && !hasAttemptedAccessRequest {
+            hasAttemptedAccessRequest = true
+            await accessCoordinator.requestAccess()
+        }
+
+        accessCoordinator.refreshStatus()
+
+        guard accessCoordinator.accessState == .authorized else {
             await MainActor.run {
-                errorMessage = "Reminders access is not granted. Enable it in Settings > Privacy & Security > Reminders."
+                calendars = []
+                errorMessage = nil
             }
             return
         }
 
+        await loadCalendars()
+    }
+
+    private func loadCalendars() async {
         let cals = eventStore.calendars(for: .reminder)
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
 
@@ -281,7 +318,7 @@ struct NewReminderSheet: View {
         }
 
         return nil
-    }   
+    }
 
     private func save() async {
         guard let calendar = selectedCalendar else { return }
@@ -325,36 +362,6 @@ struct NewReminderSheet: View {
             await MainActor.run {
                 errorMessage = "Couldn’t save reminder: \(error.localizedDescription)"
             }
-        }
-    }
-
-    private func requestRemindersAccessIfNeeded() async -> Bool {
-        let status = EKEventStore.authorizationStatus(for: .reminder)
-
-        switch status {
-        case .authorized, .fullAccess:
-            return true
-
-        case .writeOnly:
-            return false
-
-        case .notDetermined:
-            if #available(iOS 17.0, *) {
-                do { return try await eventStore.requestFullAccessToReminders() }
-                catch { return false }
-            } else {
-                return await withCheckedContinuation { cont in
-                    eventStore.requestAccess(to: .reminder) { granted, _ in
-                        cont.resume(returning: granted)
-                    }
-                }
-            }
-
-        case .denied, .restricted:
-            return false
-
-        @unknown default:
-            return false
         }
     }
 }
