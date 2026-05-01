@@ -8,6 +8,7 @@ struct HabitSeeder {
         case recent
         case random
         case spread
+        case showcase
 
         var id: String { rawValue }
 
@@ -19,6 +20,8 @@ struct HabitSeeder {
                 return "Random"
             case .spread:
                 return "Spread"
+            case .showcase:
+                return "Showcase"
             }
         }
     }
@@ -87,7 +90,7 @@ struct HabitSeeder {
         let today = cal.startOfDay(for: Date())
 
         // Use a larger visible window so random/spread patterns have room to breathe.
-        let visibleWindowDays = max(30, dayCount)
+        let visibleWindowDays = max(56, dayCount)
         let start = cal.date(byAdding: .day, value: -(visibleWindowDays - 1), to: today) ?? today
         let endExclusive = cal.date(byAdding: .day, value: 1, to: today) ?? today
 
@@ -212,6 +215,56 @@ struct HabitSeeder {
         case .recent:
             let start = max(0, visibleWindowDays - cappedCount)
             return Array(start..<visibleWindowDays)
+            
+        case .showcase:
+            // Screenshot-focused pattern:
+            // force visible activity across the whole window, not just near today.
+            let todayIndex = visibleWindowDays - 1
+
+            if cappedCount == 1 {
+                return [todayIndex]
+            }
+
+            // Fixed anchors spread across the whole visible range.
+            // These percentages intentionally touch early, middle, and late parts.
+            let anchorPercents: [Double] = [
+                0.08, 0.18, 0.30, 0.42, 0.55, 0.68, 0.78, 0.88, 0.95, 1.0
+            ]
+
+            var chosen: [Int] = []
+
+            for percent in anchorPercents.prefix(cappedCount) {
+                let raw = Int(round(Double(todayIndex) * percent))
+                let clamped = max(0, min(todayIndex, raw))
+                if chosen.contains(clamped) == false {
+                    chosen.append(clamped)
+                }
+            }
+
+            // If deduping reduced the count, fill nearby gaps across the whole range.
+            if chosen.count < cappedCount {
+                let remaining = Array(Set(0...todayIndex).subtracting(chosen)).sorted()
+                let needed = cappedCount - chosen.count
+
+                if needed > 0 && !remaining.isEmpty {
+                    let step = max(1, remaining.count / needed)
+                    var index = 0
+                    while chosen.count < cappedCount && index < remaining.count {
+                        chosen.append(remaining[index])
+                        index += step
+                    }
+                }
+            }
+
+            // Always include today for screenshot usefulness.
+            if chosen.contains(todayIndex) == false {
+                if chosen.count >= cappedCount, let last = chosen.last {
+                    chosen.removeAll { $0 == last }
+                }
+                chosen.append(todayIndex)
+            }
+
+            return Array(Set(chosen)).sorted()
 
         case .random:
             // First force broad coverage by dividing the range into regions.
@@ -285,6 +338,8 @@ struct HabitSeeder {
                     }
                 }
             }
+            
+            
 
             // Deduplicate while preserving order.
             var deduped: [Int] = []
