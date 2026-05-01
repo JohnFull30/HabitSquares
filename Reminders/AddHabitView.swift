@@ -6,38 +6,39 @@ struct AddHabitView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var name: String = ""
-    @State private var trackingMode: String = "manual"   // "manual" / "allReminders"
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Name") {
                     TextField("Habit name", text: $name)
+                        .textInputAutocapitalization(.words)
                 }
 
-                Section("Tracking Mode") {
-                    Picker("Tracking Mode", selection: $trackingMode) {
-                        Text("Manual").tag("manual")
-                        Text("All Reminders").tag("allReminders")
-                    }
-                    .pickerStyle(.segmented)
+                Section {
+                    Text("You can link Apple Reminders after creating this habit.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("Add Habit")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // Cancel
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
 
-                // Save
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         saveHabit()
                     }
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(trimmedName.isEmpty)
                 }
             }
         }
@@ -46,17 +47,13 @@ struct AddHabitView: View {
     private func saveHabit() {
         let habit = Habit(context: viewContext)
         habit.id = UUID()
-        habit.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        habit.colorHex = "#22C55E" // temporary default green
-        habit.createdAt = Date()     // ✅ NEW: timestamp
-
-
-        print("✅ AddHabitView.saveHabit: creating habit id=\(habit.objectID) name='\(habit.name ?? "<nil>")'")
+        habit.name = trimmedName
+        habit.colorHex = "#22C55E"
+        habit.createdAt = Date()
 
         do {
             try viewContext.save()
-            print("✅ AddHabitView.saveHabit: saved habit")
-            dismiss()   // <- this is what closes the Add Habit sheet
+            dismiss()
         } catch {
             print("❌ AddHabitView.saveHabit: failed to save habit: \(error)")
         }

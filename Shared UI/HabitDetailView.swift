@@ -49,7 +49,9 @@ struct HabitDetailView: View {
             ) {
                 DisclosureGroup {
                     HabitDetailDebugToolsSection(
-                        onSeedThirtyDays: seedThirtyDays,
+                        onSeedSelectedDays: { dayCount, pattern in
+                            seedSelectedDays(dayCount, pattern: pattern)
+                        },
                         onReloadWidget: reloadWidget,
                         onRefreshReminderTitles: refreshReminderTitles
                     )
@@ -352,9 +354,16 @@ struct HabitDetailView: View {
 
     // MARK: - Debug Actions
 
-    private func seedThirtyDays() {
-        print("DebugHabitToolsSection: seedThirtyDays tapped")
-        // Reconnect this to your existing HabitSeeder call if you still want this button.
+    private func seedSelectedDays(_ dayCount: Int, pattern: HabitSeeder.SeedPattern) {
+        HabitSeeder.seedCompletions(
+            dayCount: dayCount,
+            pattern: pattern,
+            for: habit,
+            in: context,
+            markComplete: true
+        )
+        reloadWidget()
+        print("DebugHabitToolsSection: seeded \(dayCount) day(s) with pattern '\(pattern.title)' for \(habit.name ?? "Habit")")
     }
 
     private func reloadWidget() {
@@ -483,10 +492,14 @@ struct HabitDetailView: View {
 }
 
 #if DEBUG
-private struct HabitDetailDebugToolsSection: View {
-    let onSeedThirtyDays: () -> Void
+struct HabitDetailDebugToolsSection: View {
+    let onSeedSelectedDays: (Int, HabitSeeder.SeedPattern) -> Void
     let onReloadWidget: () -> Void
     let onRefreshReminderTitles: () -> Void
+
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = true
+    @State private var seedDayCount: Int = 5
+    @State private var seedPattern: HabitSeeder.SeedPattern = .recent
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -495,9 +508,44 @@ private struct HabitDetailDebugToolsSection: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 10) {
-                Button(action: onSeedThirtyDays) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Seed Pattern")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    Picker("Seed Pattern", selection: $seedPattern) {
+                        ForEach(HabitSeeder.SeedPattern.allCases) { pattern in
+                            Text(pattern.title).tag(pattern)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Seed Days")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    Picker("Seed Days", selection: $seedDayCount) {
+                        Text("0").tag(0)
+                        Text("1").tag(1)
+                        Text("2").tag(2)
+                        Text("3").tag(3)
+                        Text("5").tag(5)
+                        Text("7").tag(7)
+                        Text("10").tag(10)
+                        Text("14").tag(14)
+                        Text("21").tag(21)
+                        Text("30").tag(30)
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                Button {
+                    onSeedSelectedDays(seedDayCount, seedPattern)
+                } label: {
                     debugButtonRow(
-                        title: "Seed 30 Days",
+                        title: "Seed \(seedPattern.title) · \(seedDayCount) Day\(seedDayCount == 1 ? "" : "s")",
                         systemImage: "calendar.badge.plus"
                     )
                 }
@@ -515,6 +563,16 @@ private struct HabitDetailDebugToolsSection: View {
                     debugButtonRow(
                         title: "Refresh Reminder Titles",
                         systemImage: "text.badge.checkmark"
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    hasSeenOnboarding = false
+                } label: {
+                    debugButtonRow(
+                        title: "Show Onboarding Again",
+                        systemImage: "arrow.counterclockwise"
                     )
                 }
                 .buttonStyle(.plain)

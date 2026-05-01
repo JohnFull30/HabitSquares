@@ -14,7 +14,6 @@ struct ContentView: View {
     )
     private var habitResults: FetchedResults<Habit>
 
-    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = true
     @State private var showingHowItWorks = false
 
     @State private var path = NavigationPath()
@@ -167,12 +166,8 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
-
-            Button("Show Onboarding Again") {
-                hasSeenOnboarding = false
-            }
-            .font(.footnote)
-            .padding(.top, 6)
+                .font(.footnote)
+                .padding(.top, 6)
 
             Spacer()
             Spacer()

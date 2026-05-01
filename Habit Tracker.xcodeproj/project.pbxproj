@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		52302D962F0EA8A80069311F /* DebugHabitToolsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52302D952F0EA8A80069311F /* DebugHabitToolsSection.swift */; };
 		523CBE282ED01E0000455486 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 523CBE272ED01E0000455486 /* WidgetKit.framework */; };
 		523CBE2A2ED01E0000455486 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 523CBE292ED01E0000455486 /* SwiftUI.framework */; };
 		523CBE3B2ED01E0000455486 /* Habit Tracker WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 523CBE252ED01E0000455486 /* Habit Tracker WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -109,7 +108,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		52302D952F0EA8A80069311F /* DebugHabitToolsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugHabitToolsSection.swift; sourceTree = "<group>"; };
 		523CBDE92ED010A900455486 /* Habit Tracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Habit Tracker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		523CBDFD2ED010AA00455486 /* Habit TrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Habit TrackerTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		523CBE072ED010AA00455486 /* Habit TrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Habit TrackerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -310,7 +308,6 @@
 				52563E842F84132F00C73C31 /* ConfirmDeleteModifier.swift */,
 				52563E822F83539300C73C31 /* EventKitSyncCoordinator.swift */,
 				525290BA2F1848AE00ED07F6 /* EditHabitSheet.swift */,
-				52302D952F0EA8A80069311F /* DebugHabitToolsSection.swift */,
 				52D1D6F92EFB0E5C00B3F91A /* Habit_TrackerApp.swift */,
 				52D1D6F72EFB0E5C00B3F91A /* ContentView.swift */,
 				52D1D6F82EFB0E5C00B3F91A /* Habit_Tracker.entitlements */,
@@ -562,7 +559,6 @@
 				52C865622F8C1E3F00313F31 /* HeatmapDayCell.swift in Sources */,
 				52FAC0732F92F32B0034A3C4 /* ColorHex.swift in Sources */,
 				52563E4B2F834F2C00C73C31 /* ReminderRepeatKind.swift in Sources */,
-				52302D962F0EA8A80069311F /* DebugHabitToolsSection.swift in Sources */,
 				52C692E82F9C0B9C00989C15 /* ReminderPermissionDeniedView.swift in Sources */,
 				52C692E62F9C0B8A00989C15 /* ReminderAccessCoordinator.swift in Sources */,
 				52D1D7332EFB16E100B3F91A /* WidgetDay.swift in Sources */,
