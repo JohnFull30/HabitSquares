@@ -491,6 +491,9 @@ struct HabitDetailView: View {
     }
 }
 
+
+    
+    
 #if DEBUG
 struct HabitDetailDebugToolsSection: View {
     let onSeedSelectedDays: (Int, HabitSeeder.SeedPattern) -> Void
@@ -503,10 +506,6 @@ struct HabitDetailDebugToolsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Developer Tools", systemImage: "wrench.and.screwdriver")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
             VStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Seed Pattern")
