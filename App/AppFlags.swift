@@ -10,7 +10,7 @@ import Foundation
 
 enum AppFlags {
     #if DEBUG
-    static let showDevTools = false
+    static let showDevTools = true
     #else
     static let showDevTools = false
     #endif

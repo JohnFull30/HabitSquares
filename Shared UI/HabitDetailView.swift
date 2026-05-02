@@ -41,29 +41,30 @@ struct HabitDetailView: View {
                 }
             }
 
-#if DEBUG
-            Section(
-                footer:
-                    Text("Debug-only actions for seeding, syncing, and widget refresh.")
-                    .font(.caption)
-            ) {
-                DisclosureGroup {
-                    HabitDetailDebugToolsSection(
-                        onSeedSelectedDays: { dayCount, pattern in
-                            seedSelectedDays(dayCount, pattern: pattern)
-                        },
-                        onReloadWidget: reloadWidget,
-                        onRefreshReminderTitles: refreshReminderTitles
-                    )
-                    .padding(.top, 8)
-                } label: {
-                    Label("Developer Tools", systemImage: "wrench.and.screwdriver")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
+            if AppFlags.showDevTools {
+                Section(
+                    footer:
+                        Text("Debug-only actions for seeding, syncing, and widget refresh.")
+                        .font(.caption)
+                ) {
+                    DisclosureGroup {
+                        HabitDetailDebugToolsSection(
+                            onSeedSelectedDays: { dayCount, pattern in
+                                seedSelectedDays(dayCount, pattern: pattern)
+                            },
+                            onReloadWidget: reloadWidget,
+                            onRefreshReminderTitles: refreshReminderTitles
+                        )
+                        .padding(.top, 8)
+                    } label: {
+                        Label("Developer Tools", systemImage: "wrench.and.screwdriver")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                
             }
-#endif
-        }
+            }
         .task {
             await loadLinkedReminderCandidates()
         }
