@@ -15,6 +15,8 @@ struct ContentView: View {
     private var habitResults: FetchedResults<Habit>
 
     @State private var showingHowItWorks = false
+    
+    @State private var showingSettings = false
 
     @State private var path = NavigationPath()
     @State private var activeSheet: ActiveSheet?
@@ -139,12 +141,15 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        showingHowItWorks = true
+                        showingSettings = true
                     } label: {
-                        Image(systemName: "questionmark.circle")
+                        Image(systemName: "gearshape")
                     }
-                    .accessibilityLabel("How HabitSquares works")
+                    .accessibilityLabel("Settings")
                 }
+            }
+            .sheet(isPresented: $showingSettings) {
+                HabitSquaresSettingsView()
             }
         }
     }
