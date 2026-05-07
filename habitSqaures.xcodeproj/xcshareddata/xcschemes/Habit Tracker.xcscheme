@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "523CBDE82ED010A900455486"
-               BuildableName = "Habit Tracker.app"
-               BlueprintName = "Habit Tracker"
-               ReferencedContainer = "container:Habit Tracker.xcodeproj">
+               BuildableName = "habitSqaures.app"
+               BlueprintName = "habitSqaures"
+               ReferencedContainer = "container:habitSqaures.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,9 +45,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "523CBDE82ED010A900455486"
-            BuildableName = "Habit Tracker.app"
-            BlueprintName = "Habit Tracker"
-            ReferencedContainer = "container:Habit Tracker.xcodeproj">
+            BuildableName = "habitSqaures.app"
+            BlueprintName = "habitSqaures"
+            ReferencedContainer = "container:habitSqaures.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "523CBDE82ED010A900455486"
-            BuildableName = "Habit Tracker.app"
-            BlueprintName = "Habit Tracker"
-            ReferencedContainer = "container:Habit Tracker.xcodeproj">
+            BuildableName = "habitSqaures.app"
+            BlueprintName = "habitSqaures"
+            ReferencedContainer = "container:habitSqaures.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

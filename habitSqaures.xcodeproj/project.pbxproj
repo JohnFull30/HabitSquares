@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		523CBE282ED01E0000455486 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 523CBE272ED01E0000455486 /* WidgetKit.framework */; };
 		523CBE2A2ED01E0000455486 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 523CBE292ED01E0000455486 /* SwiftUI.framework */; };
-		523CBE3B2ED01E0000455486 /* Habit Tracker WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 523CBE252ED01E0000455486 /* Habit Tracker WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		523CBE3B2ED01E0000455486 /* habitSqaures WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 523CBE252ED01E0000455486 /* habitSqaures WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		524461ED2EFF36A400537C6C /* HeatmapPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524461EC2EFF36A400537C6C /* HeatmapPalette.swift */; };
 		524461F02EFF3C7F00537C6C /* HeatmapPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524461EC2EFF36A400537C6C /* HeatmapPalette.swift */; };
 		524461F22EFF575300537C6C /* HabitSquaresWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524461F12EFF575300537C6C /* HabitSquaresWidgetView.swift */; };
@@ -102,7 +102,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				523CBE3B2ED01E0000455486 /* Habit Tracker WidgetExtension.appex in Embed Foundation Extensions */,
+				523CBE3B2ED01E0000455486 /* habitSqaures WidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -110,10 +110,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		523CBDE92ED010A900455486 /* Habit Tracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Habit Tracker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		523CBDFD2ED010AA00455486 /* Habit TrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Habit TrackerTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		523CBE072ED010AA00455486 /* Habit TrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Habit TrackerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		523CBE252ED01E0000455486 /* Habit Tracker WidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Habit Tracker WidgetExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		523CBDE92ED010A900455486 /* habitSqaures.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = habitSqaures.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		523CBDFD2ED010AA00455486 /* habitSqauresTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = habitSqauresTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		523CBE072ED010AA00455486 /* habitSqauresUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = habitSqauresUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		523CBE252ED01E0000455486 /* habitSqaures WidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "habitSqaures WidgetExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		523CBE272ED01E0000455486 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		523CBE292ED01E0000455486 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		523CBE442ED01F9000455486 /* Habit Tracker WidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Habit Tracker WidgetExtension.entitlements"; sourceTree = "<group>"; };
@@ -172,20 +172,20 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		523CBE3F2ED01E0000455486 /* Exceptions for "Habit Tracker Widget" folder in "Habit Tracker WidgetExtension" target */ = {
+		523CBE3F2ED01E0000455486 /* Exceptions for "Habit Tracker Widget" folder in "habitSqaures WidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 				WidgetRefresh.swift,
 			);
-			target = 523CBE242ED01E0000455486 /* Habit Tracker WidgetExtension */;
+			target = 523CBE242ED01E0000455486 /* habitSqaures WidgetExtension */;
 		};
-		525290B92F18411D00ED07F6 /* Exceptions for "Habit Tracker Widget" folder in "Habit Tracker" target */ = {
+		525290B92F18411D00ED07F6 /* Exceptions for "Habit Tracker Widget" folder in "habitSqaures" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				WidgetRefresh.swift,
 			);
-			target = 523CBDE82ED010A900455486 /* Habit Tracker */;
+			target = 523CBDE82ED010A900455486 /* habitSqaures */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -208,8 +208,8 @@
 		523CBE2B2ED01E0000455486 /* Habit Tracker Widget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				525290B92F18411D00ED07F6 /* Exceptions for "Habit Tracker Widget" folder in "Habit Tracker" target */,
-				523CBE3F2ED01E0000455486 /* Exceptions for "Habit Tracker Widget" folder in "Habit Tracker WidgetExtension" target */,
+				525290B92F18411D00ED07F6 /* Exceptions for "Habit Tracker Widget" folder in "habitSqaures" target */,
+				523CBE3F2ED01E0000455486 /* Exceptions for "Habit Tracker Widget" folder in "habitSqaures WidgetExtension" target */,
 			);
 			path = "Habit Tracker Widget";
 			sourceTree = "<group>";
@@ -273,10 +273,10 @@
 		523CBDEA2ED010A900455486 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				523CBDE92ED010A900455486 /* Habit Tracker.app */,
-				523CBDFD2ED010AA00455486 /* Habit TrackerTests.xctest */,
-				523CBE072ED010AA00455486 /* Habit TrackerUITests.xctest */,
-				523CBE252ED01E0000455486 /* Habit Tracker WidgetExtension.appex */,
+				523CBDE92ED010A900455486 /* habitSqaures.app */,
+				523CBDFD2ED010AA00455486 /* habitSqauresTests.xctest */,
+				523CBE072ED010AA00455486 /* habitSqauresUITests.xctest */,
+				523CBE252ED01E0000455486 /* habitSqaures WidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -394,9 +394,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		523CBDE82ED010A900455486 /* Habit Tracker */ = {
+		523CBDE82ED010A900455486 /* habitSqaures */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 523CBE102ED010AA00455486 /* Build configuration list for PBXNativeTarget "Habit Tracker" */;
+			buildConfigurationList = 523CBE102ED010AA00455486 /* Build configuration list for PBXNativeTarget "habitSqaures" */;
 			buildPhases = (
 				523CBDE52ED010A900455486 /* Sources */,
 				523CBDE62ED010A900455486 /* Frameworks */,
@@ -411,16 +411,16 @@
 			fileSystemSynchronizedGroups = (
 				523CBDEB2ED010A900455486 /* Habit Tracker */,
 			);
-			name = "Habit Tracker";
+			name = habitSqaures;
 			packageProductDependencies = (
 			);
 			productName = "Habit Tracker";
-			productReference = 523CBDE92ED010A900455486 /* Habit Tracker.app */;
+			productReference = 523CBDE92ED010A900455486 /* habitSqaures.app */;
 			productType = "com.apple.product-type.application";
 		};
-		523CBDFC2ED010AA00455486 /* Habit TrackerTests */ = {
+		523CBDFC2ED010AA00455486 /* habitSqauresTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 523CBE152ED010AA00455486 /* Build configuration list for PBXNativeTarget "Habit TrackerTests" */;
+			buildConfigurationList = 523CBE152ED010AA00455486 /* Build configuration list for PBXNativeTarget "habitSqauresTests" */;
 			buildPhases = (
 				523CBDF92ED010AA00455486 /* Sources */,
 				523CBDFA2ED010AA00455486 /* Frameworks */,
@@ -434,16 +434,16 @@
 			fileSystemSynchronizedGroups = (
 				523CBE002ED010AA00455486 /* Habit TrackerTests */,
 			);
-			name = "Habit TrackerTests";
+			name = habitSqauresTests;
 			packageProductDependencies = (
 			);
 			productName = "Habit TrackerTests";
-			productReference = 523CBDFD2ED010AA00455486 /* Habit TrackerTests.xctest */;
+			productReference = 523CBDFD2ED010AA00455486 /* habitSqauresTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		523CBE062ED010AA00455486 /* Habit TrackerUITests */ = {
+		523CBE062ED010AA00455486 /* habitSqauresUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 523CBE182ED010AA00455486 /* Build configuration list for PBXNativeTarget "Habit TrackerUITests" */;
+			buildConfigurationList = 523CBE182ED010AA00455486 /* Build configuration list for PBXNativeTarget "habitSqauresUITests" */;
 			buildPhases = (
 				523CBE032ED010AA00455486 /* Sources */,
 				523CBE042ED010AA00455486 /* Frameworks */,
@@ -457,16 +457,16 @@
 			fileSystemSynchronizedGroups = (
 				523CBE0A2ED010AA00455486 /* Habit TrackerUITests */,
 			);
-			name = "Habit TrackerUITests";
+			name = habitSqauresUITests;
 			packageProductDependencies = (
 			);
 			productName = "Habit TrackerUITests";
-			productReference = 523CBE072ED010AA00455486 /* Habit TrackerUITests.xctest */;
+			productReference = 523CBE072ED010AA00455486 /* habitSqauresUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
-		523CBE242ED01E0000455486 /* Habit Tracker WidgetExtension */ = {
+		523CBE242ED01E0000455486 /* habitSqaures WidgetExtension */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 523CBE3C2ED01E0000455486 /* Build configuration list for PBXNativeTarget "Habit Tracker WidgetExtension" */;
+			buildConfigurationList = 523CBE3C2ED01E0000455486 /* Build configuration list for PBXNativeTarget "habitSqaures WidgetExtension" */;
 			buildPhases = (
 				523CBE212ED01E0000455486 /* Sources */,
 				523CBE222ED01E0000455486 /* Frameworks */,
@@ -479,11 +479,11 @@
 			fileSystemSynchronizedGroups = (
 				523CBE2B2ED01E0000455486 /* Habit Tracker Widget */,
 			);
-			name = "Habit Tracker WidgetExtension";
+			name = "habitSqaures WidgetExtension";
 			packageProductDependencies = (
 			);
 			productName = "Habit Tracker WidgetExtension";
-			productReference = 523CBE252ED01E0000455486 /* Habit Tracker WidgetExtension.appex */;
+			productReference = 523CBE252ED01E0000455486 /* habitSqaures WidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
@@ -512,7 +512,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 523CBDE42ED010A900455486 /* Build configuration list for PBXProject "Habit Tracker" */;
+			buildConfigurationList = 523CBDE42ED010A900455486 /* Build configuration list for PBXProject "habitSqaures" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -526,10 +526,10 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				523CBDE82ED010A900455486 /* Habit Tracker */,
-				523CBDFC2ED010AA00455486 /* Habit TrackerTests */,
-				523CBE062ED010AA00455486 /* Habit TrackerUITests */,
-				523CBE242ED01E0000455486 /* Habit Tracker WidgetExtension */,
+				523CBDE82ED010A900455486 /* habitSqaures */,
+				523CBDFC2ED010AA00455486 /* habitSqauresTests */,
+				523CBE062ED010AA00455486 /* habitSqauresUITests */,
+				523CBE242ED01E0000455486 /* habitSqaures WidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -658,17 +658,17 @@
 /* Begin PBXTargetDependency section */
 		523CBDFF2ED010AA00455486 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 523CBDE82ED010A900455486 /* Habit Tracker */;
+			target = 523CBDE82ED010A900455486 /* habitSqaures */;
 			targetProxy = 523CBDFE2ED010AA00455486 /* PBXContainerItemProxy */;
 		};
 		523CBE092ED010AA00455486 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 523CBDE82ED010A900455486 /* Habit Tracker */;
+			target = 523CBDE82ED010A900455486 /* habitSqaures */;
 			targetProxy = 523CBE082ED010AA00455486 /* PBXContainerItemProxy */;
 		};
 		523CBE3A2ED01E0000455486 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 523CBE242ED01E0000455486 /* Habit Tracker WidgetExtension */;
+			target = 523CBE242ED01E0000455486 /* habitSqaures WidgetExtension */;
 			targetProxy = 523CBE392ED01E0000455486 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -889,7 +889,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Habit Tracker.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Habit Tracker";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/habitSqaures.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/habitSqaures";
 			};
 			name = Debug;
 		};
@@ -911,7 +911,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Habit Tracker.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Habit Tracker";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/habitSqaures.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/habitSqaures";
 			};
 			name = Release;
 		};
@@ -1020,7 +1020,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		523CBDE42ED010A900455486 /* Build configuration list for PBXProject "Habit Tracker" */ = {
+		523CBDE42ED010A900455486 /* Build configuration list for PBXProject "habitSqaures" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				523CBE132ED010AA00455486 /* Debug */,
@@ -1029,7 +1029,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		523CBE102ED010AA00455486 /* Build configuration list for PBXNativeTarget "Habit Tracker" */ = {
+		523CBE102ED010AA00455486 /* Build configuration list for PBXNativeTarget "habitSqaures" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				523CBE112ED010AA00455486 /* Debug */,
@@ -1038,7 +1038,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		523CBE152ED010AA00455486 /* Build configuration list for PBXNativeTarget "Habit TrackerTests" */ = {
+		523CBE152ED010AA00455486 /* Build configuration list for PBXNativeTarget "habitSqauresTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				523CBE162ED010AA00455486 /* Debug */,
@@ -1047,7 +1047,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		523CBE182ED010AA00455486 /* Build configuration list for PBXNativeTarget "Habit TrackerUITests" */ = {
+		523CBE182ED010AA00455486 /* Build configuration list for PBXNativeTarget "habitSqauresUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				523CBE192ED010AA00455486 /* Debug */,
@@ -1056,7 +1056,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		523CBE3C2ED01E0000455486 /* Build configuration list for PBXNativeTarget "Habit Tracker WidgetExtension" */ = {
+		523CBE3C2ED01E0000455486 /* Build configuration list for PBXNativeTarget "habitSqaures WidgetExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				523CBE3D2ED01E0000455486 /* Debug */,
