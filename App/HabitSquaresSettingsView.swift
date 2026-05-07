@@ -38,6 +38,12 @@ struct HabitSquaresSettingsView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                
+                Section("Widgets") {
+                    Text("Widgets show a quick snapshot of today’s habit progress. If a widget looks slightly behind, opening HabitSquares refreshes the latest reminder and habit status.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
 
                 #if DEBUG
                 if AppFlags.showDevTools {
@@ -52,7 +58,7 @@ struct HabitSquaresSettingsView: View {
                 #endif
 
                 Section("Privacy") {
-                    Text("HabitSquares uses Apple Reminders permission so you can link reminders to habits. Your habit and reminder-tracking data stays in your app data unless you later enable iCloud/CloudKit syncing.")
+                    Text("HabitSquares uses Apple Reminders permission only so you can link reminders to habits and calculate daily completion. Your habit data stays in your app data unless you later enable iCloud syncing.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

@@ -13,8 +13,6 @@ struct ContentView: View {
         animation: .default
     )
     private var habitResults: FetchedResults<Habit>
-
-    @State private var showingHowItWorks = false
     
     @State private var showingSettings = false
 
@@ -115,9 +113,7 @@ struct ContentView: View {
                         .environment(\.managedObjectContext, viewContext)
                 }
             }
-            .sheet(isPresented: $showingHowItWorks) {
-                HowItWorksView()
-            }
+    
             .onAppear {
                 logCoreDataHabits("onAppear")
                 syncTodayAndHistoryIfNeeded()
