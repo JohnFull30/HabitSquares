@@ -29,6 +29,20 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
+      <Testables>
+         <TestableReference skipped = "NO">
+            <BuildableReference BuildableIdentifier = "primary"
+               BlueprintIdentifier = "523CBDFC2ED010AA00455486"
+               BuildableName = "habitSqauresTests.xctest" BlueprintName = "habitSqauresTests"
+               ReferencedContainer = "container:habitSqaures.xcodeproj"/>
+         </TestableReference>
+         <TestableReference skipped = "NO">
+            <BuildableReference BuildableIdentifier = "primary"
+               BlueprintIdentifier = "523CBE062ED010AA00455486"
+               BuildableName = "habitSqauresUITests.xctest" BlueprintName = "habitSqauresUITests"
+               ReferencedContainer = "container:habitSqaures.xcodeproj"/>
+         </TestableReference>
+      </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

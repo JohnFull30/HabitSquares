@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AABB00000000000000000001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AABB00000000000000000003; };
+		AABB00000000000000000002 /* WidgetPrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AABB00000000000000000004; };
 		523CBE282ED01E0000455486 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 523CBE272ED01E0000455486 /* WidgetKit.framework */; };
 		523CBE2A2ED01E0000455486 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 523CBE292ED01E0000455486 /* SwiftUI.framework */; };
 		523CBE3B2ED01E0000455486 /* habitSqaures WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 523CBE252ED01E0000455486 /* habitSqaures WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -112,6 +114,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AABB00000000000000000003 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		AABB00000000000000000004 /* WidgetPrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = WidgetPrivacyInfo.xcprivacy; path = "Widget Privacy/PrivacyInfo.xcprivacy"; sourceTree = "<group>"; };
 		523CBDE92ED010A900455486 /* habitSqaures.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = habitSqaures.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		523CBDFD2ED010AA00455486 /* habitSqauresTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = habitSqauresTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		523CBE072ED010AA00455486 /* habitSqauresUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = habitSqauresUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -259,6 +263,8 @@
 		523CBDE02ED010A900455486 = {
 			isa = PBXGroup;
 			children = (
+				AABB00000000000000000003 /* PrivacyInfo.xcprivacy */,
+				AABB00000000000000000004 /* WidgetPrivacyInfo.xcprivacy */,
 				52F8F32A30A29ADB007C3AAD /* habitSqauresRelease.entitlements */,
 				52E8A4B02FB0DA9B00E9A610 /* Purchases */,
 				52E8A4AF2FB0DA9B00E9A610 /* HabitSquares.storekit */,
@@ -557,6 +563,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AABB00000000000000000001 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -578,6 +585,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AABB00000000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -707,7 +715,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Habit-Tracker-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = habitSqaures;
+				INFOPLIST_KEY_CFBundleDisplayName = HabitSquares;
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "HabitSquares uses your Apple Reminders so you can link reminders to habits and automatically track when a day is complete.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -745,7 +753,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Habit-Tracker-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = habitSqaures;
+				INFOPLIST_KEY_CFBundleDisplayName = HabitSquares;
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "HabitSquares uses your Apple Reminders so you can link reminders to habits and automatically track when a day is complete.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -953,7 +961,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Habit Tracker";
+				TEST_TARGET_NAME = habitSqaures;
 			};
 			name = Debug;
 		};
@@ -973,7 +981,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Habit Tracker";
+				TEST_TARGET_NAME = habitSqaures;
 			};
 			name = Release;
 		};

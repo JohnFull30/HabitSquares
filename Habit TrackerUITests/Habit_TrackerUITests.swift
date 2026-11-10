@@ -28,7 +28,10 @@ final class Habit_TrackerUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        // The app must reach either onboarding or the existing user's home screen.
+        let skip = app.buttons["Skip"]
+        let settings = app.buttons["Settings"]
+        XCTAssertTrue(skip.waitForExistence(timeout: 10) || settings.waitForExistence(timeout: 10))
     }
 
     @MainActor

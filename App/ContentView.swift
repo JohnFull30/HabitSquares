@@ -280,8 +280,9 @@ struct ContentView: View {
         let needsBackfill = force || (last == 0) || (last != today)
 
         if needsBackfill {
-            lastHistoryBackfillDay = today
-            HabitCompletionEngine.syncLast365DaysFromReminders(in: viewContext)
+            HabitCompletionEngine.syncLast365DaysFromReminders(in: viewContext) { succeeded in
+                if succeeded { lastHistoryBackfillDay = today }
+            }
         }
 
         syncTodayOnly()

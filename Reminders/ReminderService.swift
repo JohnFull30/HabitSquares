@@ -1,5 +1,6 @@
 import Foundation
 import EventKit
+import CoreData
 
 /// Central place for talking to EventKit Reminders.
 final class ReminderService {
@@ -218,5 +219,96 @@ final class ReminderService {
 
 
         
+    }
+}
+
+// Linking is local-only: never rewrite a reminder's URL, notes, dates or recurrence.
+// Existing URL stamps remain readable for links made by earlier versions.
+enum ReminderLinkIdentity {
+    static func stamp(in reminder: EKReminder) -> String? {
+        guard let url = reminder.url,
+              url.scheme?.lowercased() == "habitsquares",
+              url.host?.lowercased() == "reminder-link" else { return nil }
+        let value = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return value.isEmpty ? nil : value
+    }
+
+    static func identifier(for reminder: EKReminder) -> String {
+        if let stamp = stamp(in: reminder) { return stamp }
+        if let external = reminder.calendarItemExternalIdentifier, !external.isEmpty { return external }
+        return reminder.calendarItemIdentifier
+    }
+
+    static func normalized(_ key: String) -> String {
+        for prefix in ["stamp:", "ext:", "id:"] where key.hasPrefix(prefix) {
+            return String(key.dropFirst(prefix.count))
+        }
+        return key
+    }
+
+    static func keys(for reminder: EKReminder) -> Set<String> {
+        var values = [reminder.calendarItemIdentifier]
+        if let external = reminder.calendarItemExternalIdentifier { values.append(external) }
+        if let stamp = stamp(in: reminder) { values.append(stamp) }
+        return Set(values.filter { !$0.isEmpty })
+    }
+
+    static func storedKeys(_ link: NSManagedObject) -> Set<String> {
+        let names = ["reminderIdentifier", "reminderKey", "ekReminderID", "reminderId", "reminderID",
+                     "stampedUUID", "stampUUID", "stamp", "reminderExternalIdentifier",
+                     "calendarItemExternalIdentifier", "calendarItemIdentifier"]
+        return Set(names.compactMap { name in
+            guard link.entity.attributesByName[name] != nil,
+                  let value = link.value(forKey: name) as? String, !value.isEmpty else { return nil }
+            return normalized(value)
+        })
+    }
+
+    static func matches(_ reminder: EKReminder, link: NSManagedObject) -> Bool {
+        !storedKeys(link).isDisjoint(with: keys(for: reminder))
+    }
+
+    static func populate(_ link: NSManagedObject, from reminder: EKReminder, required: Bool) {
+        // Use the existing model attributes; no schema or EventKit writes.
+        let values: [String: Any] = [
+            "id": UUID(), "reminderIdentifier": identifier(for: reminder),
+            "reminderKey": identifier(for: reminder), "ekReminderID": reminder.calendarItemIdentifier,
+            "title": reminder.title ?? "", "isRequired": required
+        ]
+        for (key, value) in values where link.entity.attributesByName[key] != nil {
+            link.setValue(value, forKey: key)
+        }
+    }
+}
+
+@MainActor
+enum ReminderLinker {
+    enum LinkError: Error { case missingIdentifier }
+
+    static func save(_ reminders: [EKReminder], requiredKeys: Set<String>, habit: NSManagedObject,
+                     in context: NSManagedObjectContext) throws {
+        let request = NSFetchRequest<NSManagedObject>(entityName: "HabitReminderLink")
+        let existing = try context.fetch(request)
+        var linkedKeys = Set(existing.flatMap { ReminderLinkIdentity.storedKeys($0) })
+        var inserted: [NSManagedObject] = []
+        do {
+            for reminder in reminders {
+                let keys = ReminderLinkIdentity.keys(for: reminder)
+                guard !keys.isEmpty else { throw LinkError.missingIdentifier }
+                // Recheck the existing one-habit policy at save time, including legacy links.
+                guard linkedKeys.isDisjoint(with: keys) else { continue }
+                let link = NSEntityDescription.insertNewObject(forEntityName: "HabitReminderLink", into: context)
+                inserted.append(link)
+                link.setValue(habit, forKey: "habit")
+                ReminderLinkIdentity.populate(link, from: reminder,
+                    required: requiredKeys.contains(ReminderLinkIdentity.identifier(for: reminder)))
+                linkedKeys.formUnion(keys)
+            }
+            try context.save()
+        } catch {
+            // Only discard this failed attempt's unsaved insertions, never other pending edits.
+            for link in inserted where link.isInserted { context.delete(link) }
+            throw error
+        }
     }
 }

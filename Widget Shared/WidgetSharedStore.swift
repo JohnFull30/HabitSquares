@@ -20,8 +20,9 @@ enum WidgetSharedStore {
 
     // MARK: - URLs
 
-    private static func url(for filename: String) -> URL? {
-        FileManager.default
+    private static func url(for filename: String, directory: URL?) -> URL? {
+        if let directory { return directory.appendingPathComponent(filename) }
+        return FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: appGroupID)?
             .appendingPathComponent(filename)
     }
@@ -40,12 +41,12 @@ enum WidgetSharedStore {
 
     private static let habitsIndexFile = "habits_index.json"
 
-    static func writeHabitsIndex(_ payload: WidgetHabitsIndexPayload) {
-        write(payload, filename: habitsIndexFile)
+    static func writeHabitsIndex(_ payload: WidgetHabitsIndexPayload, directory: URL? = nil) {
+        write(payload, filename: habitsIndexFile, directory: directory)
     }
 
-    static func readHabitsIndex() -> WidgetHabitsIndexPayload? {
-        read(WidgetHabitsIndexPayload.self, filename: habitsIndexFile)
+    static func readHabitsIndex(directory: URL? = nil) -> WidgetHabitsIndexPayload? {
+        read(WidgetHabitsIndexPayload.self, filename: habitsIndexFile, directory: directory)
     }
 
     // MARK: - Per-habit today payload
@@ -58,41 +59,55 @@ enum WidgetSharedStore {
         return "today_\(safe).json"
     }
 
-    static func writeToday(_ payload: WidgetHabitTodayPayload) {
-        write(payload, filename: todayFileName(for: payload.habitID))
+    static func writeToday(_ payload: WidgetHabitTodayPayload, directory: URL? = nil) {
+        write(payload, filename: todayFileName(for: payload.habitID), directory: directory)
     }
 
-    static func readToday(habitID: String) -> WidgetHabitTodayPayload? {
-        read(WidgetHabitTodayPayload.self, filename: todayFileName(for: habitID))
+    static func readToday(habitID: String, directory: URL? = nil) -> WidgetHabitTodayPayload? {
+        // The index is authoritative. Orphaned files are retained but never displayed.
+        guard let index = readHabitsIndex(directory: directory),
+              index.habits.contains(where: { $0.id == habitID }),
+              let payload = read(WidgetHabitTodayPayload.self,
+                                 filename: todayFileName(for: habitID), directory: directory),
+              payload.habitID == habitID else { return nil }
+        return payload
+    }
+
+    static func currentSummary(_ payload: WidgetHabitTodayPayload, now: Date = Date(),
+                               calendar: Calendar = .current) -> WidgetHabitTodayPayload? {
+        calendar.isDate(payload.updatedAt, inSameDayAs: now) ? payload : nil
     }
 
     // MARK: - WidgetSnapshot (existing widget UI cache)
 
     private static let snapshotFile = "widget_snapshot.json"
 
-    static func writeSnapshot(_ snapshot: WidgetSnapshot) {
-        write(snapshot, filename: snapshotFile)
+    static func writeSnapshot(_ snapshot: WidgetSnapshot, directory: URL? = nil) {
+        write(snapshot, filename: snapshotFile, directory: directory)
     }
 
-    static func readSnapshot() -> WidgetSnapshot? {
-        read(WidgetSnapshot.self, filename: snapshotFile)
+    static func readSnapshot(directory: URL? = nil) -> WidgetSnapshot? {
+        guard let index = readHabitsIndex(directory: directory),
+              let snapshot = read(WidgetSnapshot.self, filename: snapshotFile, directory: directory),
+              snapshot.totalHabits == index.habits.count else { return nil }
+        return snapshot
     }
 
     // MARK: - Generic JSON helpers
 
-    private static func write<T: Codable>(_ value: T, filename: String) {
-        guard let fileURL = url(for: filename) else { return }
+    private static func write<T: Codable>(_ value: T, filename: String, directory: URL?) {
+        guard let fileURL = url(for: filename, directory: directory) else { return }
         do {
             let data = try JSONEncoder().encode(value)
             try data.write(to: fileURL, options: [.atomic])
-            notifyWidget()
+            if directory == nil { notifyWidget() }
         } catch {
             print("WidgetSharedStore.write error for \(filename):", error)
         }
     }
 
-    private static func read<T: Codable>(_ type: T.Type, filename: String) -> T? {
-        guard let fileURL = url(for: filename) else { return nil }
+    private static func read<T: Codable>(_ type: T.Type, filename: String, directory: URL?) -> T? {
+        guard let fileURL = url(for: filename, directory: directory) else { return nil }
         do {
             let data = try Data(contentsOf: fileURL)
             return try JSONDecoder().decode(type, from: data)

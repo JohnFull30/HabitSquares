@@ -4,501 +4,167 @@ import EventKit
 import WidgetKit
 
 enum HabitCompletionEngine {
-
-    // MARK: Public API
+    static let liveSource = "reminders"
+    static let historySource = "remindersHistory"
 
     static func syncTodayFromReminders(in context: NSManagedObjectContext,
                                        includeCompleted: Bool = true) {
+        // A partial (incomplete-only) fetch must never clear a completed square.
+        guard includeCompleted else { return }
         ReminderService.shared.requestAccessIfNeeded { ok in
-            guard ok else {
-                print("✗ HabitCompletionEngine: no reminders access")
-                return
-            }
-
-            ReminderService.shared.fetchTodayReminders(includeCompleted: includeCompleted) { todayReminders in
+            guard ok else { return }
+            ReminderService.shared.fetchTodayReminders(includeCompleted: true) { reminders in
                 Task { @MainActor in
-                    upsertCompletionsForToday(in: context, reminders: todayReminders)
+                    do {
+                        try updateToday(in: context, reminders: reminders)
+                        WidgetRefresh.push(context)
+                    } catch {
+                        print("HabitCompletionEngine: today sync failed: \(error)")
+                    }
                 }
             }
         }
     }
 
-    // MARK: Public API (History)
-
-    static func syncLast365DaysFromReminders(in context: NSManagedObjectContext) {
-        Task {
+    static func syncLast365DaysFromReminders(
+        in context: NSManagedObjectContext,
+        completion: @escaping @MainActor (Bool) -> Void = { _ in }
+    ) {
+        Task { @MainActor in
             let store = EKEventStore()
-            let ok = await requestRemindersAccessIfNeeded(store: store)
-            guard ok else {
-                print("✗ HabitCompletionEngine: no reminders access")
+            guard await requestRemindersAccessIfNeeded(store: store) else {
+                completion(false)
                 return
             }
-
-            let cal = Calendar.current
-            let today = cal.startOfDay(for: Date())
-            let start = cal.date(byAdding: .day, value: -364, to: today) ?? today
-            let endExclusive = cal.date(byAdding: .day, value: 1, to: today) ?? today
-
-            // Fetch completed reminders once for the whole window and bucket by completion day
-            let doneKeysByDay = await fetchDoneKeysByCompletionDay(store: store,
-                                                                  start: start,
-                                                                  endExclusive: endExclusive)
-
-            await upsertCompletionsForWindow(in: context,
-                                              startDay: start,
-                                              endDayInclusive: today,
-                                              doneKeysByDay: doneKeysByDay)
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            let start = calendar.date(byAdding: .day, value: -364, to: today) ?? today
+            let predicate = store.predicateForCompletedReminders(
+                withCompletionDateStarting: start, ending: today,
+                calendars: store.calendars(for: .reminder))
+            let fetched: [EKReminder]? = await withCheckedContinuation { continuation in
+                store.fetchReminders(matching: predicate) { continuation.resume(returning: $0) }
+            }
+            guard let reminders = fetched,
+                  EKEventStore.authorizationStatus(for: .reminder) == .fullAccess else {
+                completion(false)
+                return
+            }
+            var keysByDay: [Date: Set<String>] = [:]
+            for reminder in reminders where reminder.isCompleted {
+                guard let date = reminder.completionDate else { continue }
+                let day = calendar.startOfDay(for: date)
+                guard day >= start, day < today else { continue }
+                keysByDay[day, default: []].formUnion(ReminderLinkIdentity.keys(for: reminder))
+            }
+            do {
+                try backfillHistory(in: context, doneKeysByDay: keysByDay, now: today)
+                WidgetRefresh.push(context)
+                completion(true)
+            } catch {
+                print("HabitCompletionEngine: history sync failed: \(error)")
+                completion(false)
+            }
         }
     }
 
-    // MARK: Core compute / upsert
-
+    /// Only an observed, resolvable set of required reminders may update today's live row.
+    /// Legacy/manual/seed rows have unknown provenance and are deliberately left intact.
     @MainActor
-    static func upsertCompletionsForToday(in context: NSManagedObjectContext,
-                                         reminders: [EKReminder]) {
-
-        let cal = Calendar.current
-        let startOfDay = cal.startOfDay(for: Date())
-        let endOfDay = cal.date(byAdding: .day, value: 1, to: startOfDay)!
-
-        // ✅ Clean key sets
-        // Primary: stamped UUIDs (what we want long-term)
-        // Legacy: external/item IDs (for old links only)
-        var doneStampUUIDs = Set<String>()
-        var doneLegacyKeys = Set<String>()
-
-        for r in reminders where r.isCompleted {
-            // ✅ Only count completions that happened today
-            guard let completedAt = r.completionDate,
-                  completedAt.compare(startOfDay) != .orderedAscending,
-                  completedAt.compare(endOfDay) == .orderedAscending
-            else { continue }
-
-            if let stamp = stampedUUID(from: r) {
-                doneStampUUIDs.insert(stamp)
-            } else {
-                if let ext = r.calendarItemExternalIdentifier, !ext.isEmpty {
-                    doneLegacyKeys.insert(ext)
-                }
-                doneLegacyKeys.insert(r.calendarItemIdentifier)
+    static func updateToday(in context: NSManagedObjectContext,
+                            reminders: [EKReminder], now: Date = Date()) throws {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
+        let availableKeys = reminders.reduce(into: Set<String>()) {
+            $0.formUnion(ReminderLinkIdentity.keys(for: $1))
+        }
+        let doneKeys = reminders.reduce(into: Set<String>()) { keys, reminder in
+            guard reminder.isCompleted, let completed = reminder.completionDate,
+                  completed >= today, completed < tomorrow else { return }
+            keys.formUnion(ReminderLinkIdentity.keys(for: reminder))
+        }
+        for habit in try context.fetch(Habit.fetchRequest()) {
+            let links = try requiredLinks(for: habit, in: context)
+            guard !links.isEmpty,
+                  links.allSatisfy({ !ReminderLinkIdentity.storedKeys($0).isDisjoint(with: availableKeys) }) else {
+                // A missing/deleted/inaccessible reminder is not evidence of incompletion.
+                continue
             }
+            let existing = try completions(for: habit, day: today, in: context)
+            // Preserve duplicates and all pre-existing rows of unknown/manual provenance.
+            guard existing.count <= 1,
+                  existing.first.map({ $0.source == liveSource }) ?? true else { continue }
+            let row = existing.first ?? HabitCompletion(context: context)
+            row.id = row.id ?? UUID()
+            row.habit = habit
+            row.date = today
+            row.source = liveSource
+            let done = links.filter { !ReminderLinkIdentity.storedKeys($0).isDisjoint(with: doneKeys) }.count
+            row.totalRequired = Int16(clamping: links.count)
+            row.completedRequired = Int16(clamping: done)
+            row.isComplete = done == links.count
         }
+        if context.hasChanges { try context.save() }
+    }
 
-        let habits = fetchHabits(in: context)
-
-        guard let linkEntityName = guessLinkEntityName(in: context) else {
-            print("✗ HabitCompletionEngine: could not guess link entity name")
-            return
-        }
-
-        guard let linkToHabitKey = findRelationshipKey(entityName: linkEntityName,
-                                                      destinationEntityName: "Habit",
-                                                      in: context) else {
-            print("✗ HabitCompletionEngine: could not find relationship from \(linkEntityName) -> Habit")
-            return
-        }
-
-        // Upsert completion per habit
+    /// History is insert-only. Missing EventKit history must never erase stored history,
+    /// and today's row belongs exclusively to the live sync, avoiding competing writers.
+    @MainActor
+    static func backfillHistory(in context: NSManagedObjectContext,
+                                doneKeysByDay: [Date: Set<String>], now: Date = Date()) throws {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let firstDay = calendar.date(byAdding: .day, value: -364, to: today)!
+        let habits = try context.fetch(Habit.fetchRequest())
         for habit in habits {
-            let requiredLinks = fetchLinks(for: habit,
-                                           linkEntityName: linkEntityName,
-                                           linkToHabitKey: linkToHabitKey,
-                                           requiredOnly: true,
-                                           in: context)
-
-            var requiredDone = 0
-
-            for link in requiredLinks {
-                let storedKeys = linkStoredKeys(link).map(normalizeStoredKey)
-
-                // Prefer stamps when present, fallback to legacy
-                let hasMatch =
-                    storedKeys.contains(where: { doneStampUUIDs.contains($0) }) ||
-                    storedKeys.contains(where: { doneLegacyKeys.contains($0) })
-
-                if hasMatch { requiredDone += 1 }
+            let links = try requiredLinks(for: habit, in: context)
+            guard !links.isEmpty else { continue }
+            for (date, keys) in doneKeysByDay {
+                let day = calendar.startOfDay(for: date)
+                guard day >= firstDay, day < today,
+                      try completions(for: habit, day: day, in: context).isEmpty else { continue }
+                let done = links.filter { !ReminderLinkIdentity.storedKeys($0).isDisjoint(with: keys) }.count
+                // Absence is ambiguous. Only import actual positive completion evidence.
+                guard done > 0 else { continue }
+                let row = HabitCompletion(context: context)
+                row.id = UUID()
+                row.habit = habit
+                row.date = day
+                row.source = historySource
+                row.totalRequired = Int16(clamping: links.count)
+                row.completedRequired = Int16(clamping: done)
+                row.isComplete = done == links.count
             }
-
-            let requiredTotal = requiredLinks.count
-            let isComplete = (requiredTotal > 0) && (requiredDone == requiredTotal)
-
-            upsertHabitCompletion(habit: habit,
-                                  startOfDay: startOfDay,
-                                  endOfDay: endOfDay,
-                                  requiredTotal: requiredTotal,
-                                  requiredDone: requiredDone,
-                                  isComplete: isComplete,
-                                  in: context)
         }
-
-        do {
-            try context.save()
-            WidgetRefresh.push(context)
-
-
-            print("✓ HabitCompletionEngine: saved completions for today.")
-        } catch {
-            print("✗ HabitCompletionEngine: failed saving completions: \(error)")
-        }
+        if context.hasChanges { try context.save() }
     }
-    
-    
-
-    // MARK: - Key helpers
-
-    private static func stampedUUID(from r: EKReminder) -> String? {
-        guard let url = r.url else { return nil }
-        guard url.scheme?.lowercased() == "habitsquares" else { return nil }
-        guard url.host?.lowercased() == "reminder-link" else { return nil }
-
-        let raw = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return raw.isEmpty ? nil : raw
-    }
-
-    /// Normalize keys stored in Core Data links so they match what we store in `doneKeys` buckets.
-    private static func normalizeStoredKey(_ key: String) -> String {
-        // Support prefixed storage formats (if you used them earlier)
-        if key.hasPrefix("stamp:") { return String(key.dropFirst("stamp:".count)) }
-        if key.hasPrefix("ext:") { return String(key.dropFirst("ext:".count)) }
-        if key.hasPrefix("id:") { return String(key.dropFirst("id:".count)) }
-        return key
-    }
-
-    // MARK: Upsert HabitCompletion
 
     @MainActor
-    private static func upsertHabitCompletion(habit: NSManagedObject,
-                                             startOfDay: Date,
-                                             endOfDay: Date,
-                                             requiredTotal: Int,
-                                             requiredDone: Int,
-                                             isComplete: Bool,
-                                             in context: NSManagedObjectContext) {
-
-        guard let completionEntity = context.persistentStoreCoordinator?.managedObjectModel.entitiesByName["HabitCompletion"]?.name else {
-            print("✗ HabitCompletionEngine: missing entity HabitCompletion in model")
-            return
-        }
-
-        let req = NSFetchRequest<NSManagedObject>(entityName: completionEntity)
-        req.fetchLimit = 1
-
-        let completionToHabitKey =
-            findRelationshipKey(entityName: completionEntity,
-                                destinationEntityName: "Habit",
-                                in: context)
-
-        var preds: [NSPredicate] = [
-            NSPredicate(format: "date >= %@ AND date < %@", startOfDay as NSDate, endOfDay as NSDate)
-        ]
-        if let k = completionToHabitKey {
-            preds.append(NSPredicate(format: "%K == %@", k, habit))
-        }
-        req.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: preds)
-
-        let completion: NSManagedObject
-        if let existing = try? context.fetch(req).first {
-            completion = existing
-        } else {
-            completion = NSEntityDescription.insertNewObject(forEntityName: completionEntity, into: context)
-
-            if let k = completionToHabitKey {
-                completion.setIfExistsObject(habit, forKey: k)
-            }
-        }
-
-        // ✅ Normalize stored date every time (prevents time-component drift)
-        completion.setIfExistsDate(startOfDay, forKey: "date")
-
-        completion.setIfExistsInt(requiredTotal, forKey: "totalRequired")
-        completion.setIfExistsInt(requiredDone, forKey: "completedRequired")
-        completion.setIfExistsBool(isComplete, forKey: "isComplete")
+    private static func requiredLinks(for habit: Habit,
+                                      in context: NSManagedObjectContext) throws -> [HabitReminderLink] {
+        let request = HabitReminderLink.fetchRequest()
+        request.predicate = NSPredicate(format: "habit == %@ AND isRequired == YES", habit)
+        return try context.fetch(request)
     }
-
-    // MARK: Fetch habits
 
     @MainActor
-    private static func fetchHabits(in context: NSManagedObjectContext) -> [NSManagedObject] {
-        let req = NSFetchRequest<NSManagedObject>(entityName: "Habit")
-        req.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return (try? context.fetch(req)) ?? []
+    private static func completions(for habit: Habit, day: Date,
+                                    in context: NSManagedObjectContext) throws -> [HabitCompletion] {
+        let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: day)!
+        let request = HabitCompletion.fetchRequest()
+        request.predicate = NSPredicate(format: "habit == %@ AND date >= %@ AND date < %@",
+                                        habit, day as NSDate, nextDay as NSDate)
+        return try context.fetch(request)
     }
-
-    // MARK: Fetch links (NO Habit.links)
-
-    @MainActor
-    private static func fetchLinks(for habit: NSManagedObject,
-                                   linkEntityName: String,
-                                   linkToHabitKey: String,
-                                   requiredOnly: Bool,
-                                   in context: NSManagedObjectContext) -> [NSManagedObject] {
-        let req = NSFetchRequest<NSManagedObject>(entityName: linkEntityName)
-
-        var preds: [NSPredicate] = [
-            NSPredicate(format: "%K == %@", linkToHabitKey, habit)
-        ]
-
-        if requiredOnly {
-            if context.entityHasAttribute(entityName: linkEntityName, attr: "isRequired") {
-                preds.append(NSPredicate(format: "isRequired == YES"))
-            } else if context.entityHasAttribute(entityName: linkEntityName, attr: "required") {
-                preds.append(NSPredicate(format: "required == YES"))
-            }
-        }
-
-        req.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: preds)
-        return (try? context.fetch(req)) ?? []
-    }
-
-    // MARK: Link stored keys
-
-    private static func linkStoredKeys(_ link: NSManagedObject) -> [String] {
-        var keys: [String] = []
-        let candidates = [
-            "stampedUUID",
-            "stampUUID",
-            "stamp",
-            "reminderExternalIdentifier",
-            "calendarItemExternalIdentifier",
-            "reminderIdentifier",
-            "calendarItemIdentifier",
-            "reminderId"
-        ]
-
-        for k in candidates {
-            if let v = link.valueIfExists(forKey: k) as? String, !v.isEmpty {
-                keys.append(v)
-            }
-        }
-
-        // Dedup while preserving order
-        var seen = Set<String>()
-        return keys.filter { seen.insert($0).inserted }
-    }
-
-    // MARK: - Model introspection
-
-    private static func findRelationshipKey(
-        entityName: String,
-        destinationEntityName: String,
-        in context: NSManagedObjectContext
-    ) -> String? {
-        guard let model = context.persistentStoreCoordinator?.managedObjectModel else { return nil }
-        guard let entity = model.entitiesByName[entityName] else { return nil }
-
-        for (name, rel) in entity.relationshipsByName {
-            if rel.destinationEntity?.name == destinationEntityName {
-                return name
-            }
-        }
-
-        return nil
-    }
-
-    private static func guessLinkEntityName(in context: NSManagedObjectContext) -> String? {
-        guard let model = context.persistentStoreCoordinator?.managedObjectModel else { return nil }
-
-        let common = [
-            "HabitReminderLink",
-            "HabitReminderLinks",
-            "ReminderLink",
-            "ReminderLinks"
-        ]
-
-        for name in common {
-            if model.entitiesByName[name] != nil { return name }
-        }
-
-        for (name, entity) in model.entitiesByName {
-            let attrs = Set(entity.attributesByName.keys)
-            let looksLikeLink =
-                attrs.contains("reminderIdentifier") ||
-                attrs.contains("reminderId") ||
-                attrs.contains("calendarItemIdentifier") ||
-                attrs.contains("calendarItemExternalIdentifier")
-
-            let hasHabitRel = entity.relationshipsByName.values.contains { $0.destinationEntity?.name == "Habit" }
-
-            if looksLikeLink && hasHabitRel {
-                return name
-            }
-        }
-
-        return nil
-    }
-
-    // MARK: - Window upsert
-
-    @MainActor
-    private static func upsertCompletionsForWindow(in context: NSManagedObjectContext,
-                                                   startDay: Date,
-                                                   endDayInclusive: Date,
-                                                   doneKeysByDay: [Date: Set<String>]) async {
-
-        let cal = Calendar.current
-        let habits = fetchHabits(in: context)
-
-        guard let linkEntityName = guessLinkEntityName(in: context) else {
-            print("✗ HabitCompletionEngine: could not guess link entity name")
-            return
-        }
-        guard let linkToHabitKey = findRelationshipKey(entityName: linkEntityName,
-                                                      destinationEntityName: "Habit",
-                                                      in: context) else {
-            print("✗ HabitCompletionEngine: could not find relationship \(linkEntityName) -> Habit")
-            return
-        }
-
-        // Resolve each habit's links once, rather than fetching them for every day.
-        let habitKeys = habits.map { habit in
-            let links = fetchLinks(for: habit,
-                                   linkEntityName: linkEntityName,
-                                   linkToHabitKey: linkToHabitKey,
-                                   requiredOnly: true,
-                                   in: context)
-            return (habit, links.map { Set(linkStoredKeys($0).map(normalizeStoredKey)) })
-        }
-
-        // Process one day at a time so startup work does not monopolize the UI.
-        var day = cal.startOfDay(for: startDay)
-        let last = cal.startOfDay(for: endDayInclusive)
-
-        while day.compare(last) != .orderedDescending {
-            let nextDay = cal.date(byAdding: .day, value: 1, to: day)!
-            let doneKeysForDay = doneKeysByDay[day] ?? []
-
-            for (habit, requiredKeys) in habitKeys where !habit.isDeleted {
-                let requiredDone = requiredKeys.filter {
-                    !$0.isDisjoint(with: doneKeysForDay)
-                }.count
-                let requiredTotal = requiredKeys.count
-                let isComplete = (requiredTotal > 0) && (requiredDone == requiredTotal)
-
-                upsertHabitCompletion(habit: habit,
-                                      startOfDay: day,
-                                      endOfDay: nextDay,
-                                      requiredTotal: requiredTotal,
-                                      requiredDone: requiredDone,
-                                      isComplete: isComplete,
-                                      in: context)
-            }
-
-            day = nextDay
-            await Task.yield()
-        }
-
-        do {
-            try context.save()
-
-            // ✅ Refresh widget cache after backfill too
-            WidgetDataWriter.writeSnapshot(dayCount: 60, in: context)
-            WidgetCenter.shared.reloadAllTimelines()
-
-            print("✓ HabitCompletionEngine: saved completions for 365-day window.")
-        } catch {
-            print("✗ HabitCompletionEngine: failed saving 365-day window: \(error)")
-        }
-    }
-
-    // MARK: - EventKit completed bucketing
-
-    private static func fetchDoneKeysByCompletionDay(store: EKEventStore,
-                                                    start: Date,
-                                                    endExclusive: Date) async -> [Date: Set<String>] {
-        let calendars = store.calendars(for: .reminder)
-        let predicate = store.predicateForCompletedReminders(withCompletionDateStarting: start,
-                                                             ending: endExclusive,
-                                                             calendars: calendars)
-
-        let completed: [EKReminder] = await fetchRemindersAsync(store: store, predicate: predicate)
-
-        var bucket: [Date: Set<String>] = [:]
-        let cal = Calendar.current
-
-        for r in completed where r.isCompleted {
-            guard let completionDate = r.completionDate else { continue }
-            let day = cal.startOfDay(for: completionDate)
-
-            if let stamp = stampedUUID(from: r) {
-                bucket[day, default: []].insert(stamp)
-            } else {
-                if let ext = r.calendarItemExternalIdentifier, !ext.isEmpty {
-                    bucket[day, default: []].insert(ext)
-                }
-                bucket[day, default: []].insert(r.calendarItemIdentifier)
-            }
-        }
-
-        return bucket
-    }
-
-    private static func fetchRemindersAsync(store: EKEventStore,
-                                           predicate: NSPredicate) async -> [EKReminder] {
-        await withCheckedContinuation { cont in
-            store.fetchReminders(matching: predicate) { reminders in
-                cont.resume(returning: reminders ?? [])
-            }
-        }
-    }
-
-    // MARK: - Reminders access
 
     private static func requestRemindersAccessIfNeeded(store: EKEventStore) async -> Bool {
-        let status = EKEventStore.authorizationStatus(for: .reminder)
-        switch status {
-        case .authorized, .fullAccess:
-            return true
-
-        case .writeOnly:
-            return false
-
-        case .denied, .restricted:
-            return false
-
+        switch EKEventStore.authorizationStatus(for: .reminder) {
+        case .fullAccess, .authorized: return true
         case .notDetermined:
-            if #available(iOS 17.0, *) {
-                do { return try await store.requestFullAccessToReminders() }
-                catch { return false }
-            } else {
-                do { return try await store.requestAccess(to: .reminder) }
-                catch { return false }
-            }
-
-        @unknown default:
-            return false
+            do { return try await store.requestFullAccessToReminders() }
+            catch { return false }
+        default: return false
         }
-    }
-}
-
-// MARK: - NSManagedObject helpers (safe KVC)
-
-private extension NSManagedObject {
-    func setIfExistsInt(_ value: Int, forKey key: String) {
-        if entity.attributesByName[key] != nil { setValue(value, forKey: key) }
-    }
-
-    func setIfExistsBool(_ value: Bool, forKey key: String) {
-        if entity.attributesByName[key] != nil { setValue(value, forKey: key) }
-    }
-
-    func setIfExistsDate(_ value: Date, forKey key: String) {
-        if entity.attributesByName[key] != nil { setValue(value, forKey: key) }
-    }
-
-    func setIfExistsObject(_ value: Any?, forKey key: String) {
-        if entity.relationshipsByName[key] != nil { setValue(value, forKey: key) }
-    }
-
-    func valueIfExists(forKey key: String) -> Any? {
-        if entity.attributesByName[key] != nil { return value(forKey: key) }
-        if entity.relationshipsByName[key] != nil { return value(forKey: key) }
-        return nil
-    }
-}
-
-private extension NSManagedObjectContext {
-    func entityHasAttribute(entityName: String, attr: String) -> Bool {
-        guard let model = persistentStoreCoordinator?.managedObjectModel else { return false }
-        return model.entitiesByName[entityName]?.attributesByName[attr] != nil
     }
 }

@@ -167,25 +167,14 @@ struct HabitDetailView: View {
     }
 
     private func resolvedReminder(for link: HabitReminderLink) -> EKReminder? {
-        guard let storedID = linkStoredStableIdentifier(link) else {
+        guard linkStoredStableIdentifier(link) != nil else {
             return nil
         }
 
-        if let direct = reminderStore.calendarItem(withIdentifier: storedID) as? EKReminder {
-            return direct
+        for key in ReminderLinkIdentity.storedKeys(link) {
+            if let direct = reminderStore.calendarItem(withIdentifier: key) as? EKReminder { return direct }
         }
-
-        return loadedReminders.first { reminder in
-            if let stamped = stampedUUID(from: reminder), stamped == storedID {
-                return true
-            }
-
-            if let externalID = reminder.calendarItemExternalIdentifier, externalID == storedID {
-                return true
-            }
-
-            return reminder.calendarItemIdentifier == storedID
-        }
+        return loadedReminders.first { ReminderLinkIdentity.matches($0, link: link) }
     }
 
     private func reminderScheduleSummary(_ reminder: EKReminder) -> String? {
@@ -297,17 +286,7 @@ struct HabitDetailView: View {
 
             let reminders = await fetchAllRemindersForEditing()
 
-            let match = reminders.first { reminder in
-                if let stamped = stampedUUID(from: reminder), stamped == storedID {
-                    return true
-                }
-
-                if let externalID = reminder.calendarItemExternalIdentifier, externalID == storedID {
-                    return true
-                }
-
-                return reminder.calendarItemIdentifier == storedID
-            }
+            let match = reminders.first { ReminderLinkIdentity.matches($0, link: link) }
 
             guard let match else {
                 print("✗ HabitDetailView: could not resolve EventKit reminder for link ID \(storedID)")
@@ -441,29 +420,10 @@ struct HabitDetailView: View {
         }
     }
 
-    private func stampedUUID(from reminder: EKReminder) -> String? {
-        guard let url = reminder.url else { return nil }
-        guard url.scheme?.lowercased() == "habitsquares" else { return nil }
-        guard url.host?.lowercased() == "reminder-link" else { return nil }
 
-        let raw = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return raw.isEmpty ? nil : raw
-    }
 
     private func linkStoredStableIdentifier(_ link: HabitReminderLink) -> String? {
-        if let id = link.reminderIdentifier, !id.isEmpty {
-            return id
-        }
-
-        if let id = link.value(forKey: "reminderId") as? String, !id.isEmpty {
-            return id
-        }
-
-        if let id = link.value(forKey: "reminderID") as? String, !id.isEmpty {
-            return id
-        }
-
-        return nil
+        ReminderLinkIdentity.storedKeys(link).sorted().first
     }
 
     // MARK: - Delete

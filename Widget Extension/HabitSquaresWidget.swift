@@ -51,17 +51,20 @@ struct HabitSquaresProvider: AppIntentTimelineProvider {
         for configuration: HabitWidgetConfigurationIntent
     ) -> (snapshot: WidgetSnapshot, payload: WidgetHabitTodayPayload?) {
 
-        if let selectedHabitID = configuration.habit?.id,
-           let payload = WidgetSharedStore.readToday(habitID: selectedHabitID) {
-
+        if let selectedHabitID = configuration.habit?.id {
+            guard let payload = WidgetSharedStore.readToday(habitID: selectedHabitID) else {
+                // A removed/unavailable selected habit must not show another habit's data.
+                return (WidgetSnapshotStore.placeholder(dayCount: 60), nil)
+            }
+            let summary = WidgetSharedStore.currentSummary(payload)
             let snapshot = WidgetSnapshot(
                 updatedAt: payload.updatedAt,
                 days: payload.days,
                 totalHabits: 1,
-                completeHabits: payload.isComplete ? 1 : 0
+                completeHabits: summary?.isComplete == true ? 1 : 0
             )
-
-            return (snapshot, payload)
+            // Retain cached history across midnight, without claiming yesterday is "Done" today.
+            return (snapshot, summary)
         }
 
         if let snap = WidgetSharedStore.readSnapshot() {

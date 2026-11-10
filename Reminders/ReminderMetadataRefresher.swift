@@ -88,38 +88,7 @@ final class ReminderMetadataRefresher {
         for link: NSManagedObject,
         in reminders: [EKReminder]
     ) -> EKReminder? {
-        let storedStamp = firstNonEmptyString(link.valueIfExists(forKey: "reminderIdentifier"))
-        let storedItemID = firstNonEmptyString(link.valueIfExists(forKey: "calendarItemIdentifier"))
-        let storedExternalID = firstNonEmptyString(link.valueIfExists(forKey: "calendarItemExternalIdentifier"))
-
-        for reminder in reminders {
-            let reminderStamp = stampedUUID(from: reminder)
-            let reminderItemID = reminder.calendarItemIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
-            let reminderExternalID = reminder.calendarItemExternalIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if let storedStamp, let reminderStamp, storedStamp == reminderStamp {
-                return reminder
-            }
-
-            if let storedItemID, !storedItemID.isEmpty, storedItemID == reminderItemID {
-                return reminder
-            }
-
-            if let storedExternalID, !storedExternalID.isEmpty, storedExternalID == reminderExternalID {
-                return reminder
-            }
-        }
-
-        return nil
-    }
-
-    private func stampedUUID(from reminder: EKReminder) -> String? {
-        guard let url = reminder.url else { return nil }
-        guard url.scheme?.lowercased() == "habitsquares" else { return nil }
-        guard url.host?.lowercased() == "reminder-link" else { return nil }
-
-        let raw = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return raw.isEmpty ? nil : raw
+        reminders.first { ReminderLinkIdentity.matches($0, link: link) }
     }
 
     private func fetchAllReminders(from store: EKEventStore) async -> [EKReminder] {
@@ -131,12 +100,6 @@ final class ReminderMetadataRefresher {
                 continuation.resume(returning: reminders ?? [])
             }
         }
-    }
-
-    private func firstNonEmptyString(_ raw: Any?) -> String? {
-        guard let value = raw as? String else { return nil }
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
     }
 
     // MARK: - Model helpers

@@ -12,7 +12,7 @@ enum WidgetDataWriter {
     /// 1) habits_index.json (for widget picker)
     /// 2) today_<habitID>.json per habit (today summary + days grid)
     /// 3) widget_snapshot.json fallback
-    static func writeSnapshot(dayCount: Int = 60, in context: NSManagedObjectContext) {
+    static func writeSnapshot(dayCount: Int = 60, in context: NSManagedObjectContext, directory: URL? = nil) {
 
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
@@ -31,12 +31,16 @@ enum WidgetDataWriter {
 
         // Fetch habits
         let habitReq = NSFetchRequest<NSManagedObject>(entityName: "Habit")
-        let habits = (try? context.fetch(habitReq)) ?? []
+        let habits: [NSManagedObject]
+        do { habits = try context.fetch(habitReq) }
+        catch { return } // Keep the last valid cache on fetch failure.
 
         // Fetch completions in range [start, endExclusive)
         let compReq = NSFetchRequest<NSManagedObject>(entityName: "HabitCompletion")
         compReq.predicate = NSPredicate(format: "date >= %@ AND date < %@", start as NSDate, endExclusive as NSDate)
-        let completions = (try? context.fetch(compReq)) ?? []
+        let completions: [NSManagedObject]
+        do { completions = try context.fetch(compReq) }
+        catch { return }
 
         // Map: habitID -> [dateKey: isComplete]
         var completeByHabitAndDay: [String: [String: Bool]] = [:]
@@ -71,7 +75,7 @@ enum WidgetDataWriter {
         }
 
         WidgetSharedStore.writeHabitsIndex(
-            WidgetHabitsIndexPayload(updatedAt: Date(), habits: stubs)
+            WidgetHabitsIndexPayload(updatedAt: Date(), habits: stubs), directory: directory
         )
 
         // 2) Write per-habit payload
@@ -90,8 +94,8 @@ enum WidgetDataWriter {
 
             // Today totals from today's HabitCompletion (if any)
             let c = todayCompletionByHabitID[hid]
-            let totalRequired = Int((c?.value(forKey: "totalRequired") as? Int32) ?? 0)
-            let completedRequired = Int((c?.value(forKey: "completedRequired") as? Int32) ?? 0)
+            let totalRequired = (c?.value(forKey: "totalRequired") as? NSNumber)?.intValue ?? 0
+            let completedRequired = (c?.value(forKey: "completedRequired") as? NSNumber)?.intValue ?? 0
             let isComplete = map[todayKey] ?? false
 
             let payload = WidgetHabitTodayPayload(
@@ -104,7 +108,7 @@ enum WidgetDataWriter {
                 days: days
             )
 
-            WidgetSharedStore.writeToday(payload)
+            WidgetSharedStore.writeToday(payload, directory: directory)
         }
 
         // 3) Snapshot fallback (all habits complete on that day)
@@ -134,7 +138,7 @@ enum WidgetDataWriter {
             completeHabits: completeHabitsToday
         )
 
-        WidgetSharedStore.writeSnapshot(snapshot)
+        WidgetSharedStore.writeSnapshot(snapshot, directory: directory)
     }
 }
 

@@ -13,6 +13,8 @@ struct AddRemindersSheet: View {
     @StateObject private var accessCoordinator = ReminderAccessCoordinator()
 
     @State private var showNewReminderSheet = false
+    @State private var isSavingLinks = false
+    @State private var linkSaveError: String?
     @State private var isReloadingFromCoordinator = false
     @State private var hasAttemptedAccessRequest = false
 
@@ -24,8 +26,8 @@ struct AddRemindersSheet: View {
     @State private var query: String = ""
 
     @State private var selectedKeys: Set<String> = []
-    @State private var linkedToThisHabitStableUUIDs: Set<String> = []
-    @State private var linkedAnywhereStableUUIDs: Set<String> = []
+    @State private var linkedToThisHabitKeys: Set<String> = []
+    @State private var linkedAnywhereKeys: Set<String> = []
     @State private var requiredKeys: Set<String> = []
 
     private enum FilterMode: String, CaseIterable {
@@ -48,9 +50,6 @@ struct AddRemindersSheet: View {
     @State private var selectedCalendarID: String? = nil
 
     private let reminderLinkPolicy: ReminderLinkPolicy = .oneHabitOnly
-
-    private let stampScheme = "habitsquares"
-    private let stampHost = "reminder-link"
 
     private func handleCreatedReminder(_ r: EKReminder, isRequired: Bool) {
         if !allReminders.contains(where: { $0.calendarItemIdentifier == r.calendarItemIdentifier }) {
@@ -96,13 +95,22 @@ struct AddRemindersSheet: View {
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Save") {
                                 Task {
-                                    await saveLinksAsync()
-                                    dismiss()
+                                    guard !isSavingLinks else { return }
+                                    isSavingLinks = true
+                                    defer { isSavingLinks = false }
+                                    if await saveLinksAsync() { dismiss() }
                                 }
                             }
-                            .disabled(selectedKeys.isEmpty)
+                            .disabled(selectedKeys.isEmpty || isSavingLinks)
                         }
                     }
+                }
+                .alert("Couldn’t link reminders", isPresented: Binding(
+                    get: { linkSaveError != nil }, set: { if !$0 { linkSaveError = nil } }
+                )) {
+                    Button("OK") { linkSaveError = nil }
+                } message: {
+                    Text(linkSaveError ?? "Please try again.")
                 }
                 .task {
                     await prepareReminderAccessAndData()
@@ -376,35 +384,15 @@ struct AddRemindersSheet: View {
     }
 
     private var linkedFilteredReminders: [EKReminder] {
-        filteredReminders.filter { reminder in
-            guard let stamp = stampedUUID(from: reminder) else { return false }
-            return linkedToThisHabitStableUUIDs.contains(stamp)
-        }
+        filteredReminders.filter { rowState(for: $0) == .linkedToThisHabit }
     }
 
     private var blockedFilteredReminders: [EKReminder] {
-        guard reminderLinkPolicy == .oneHabitOnly else { return [] }
-
-        return filteredReminders.filter { reminder in
-            guard let stamp = stampedUUID(from: reminder) else { return false }
-            return linkedAnywhereStableUUIDs.contains(stamp) && !linkedToThisHabitStableUUIDs.contains(stamp)
-        }
+        filteredReminders.filter { rowState(for: $0) == .linkedToAnotherHabit }
     }
 
     private var availableFilteredReminders: [EKReminder] {
-        filteredReminders.filter { reminder in
-            guard let stamp = stampedUUID(from: reminder) else { return true }
-
-            if linkedToThisHabitStableUUIDs.contains(stamp) {
-                return false
-            }
-
-            if reminderLinkPolicy == .oneHabitOnly && linkedAnywhereStableUUIDs.contains(stamp) {
-                return false
-            }
-
-            return true
-        }
+        filteredReminders.filter { rowState(for: $0) == .available }
     }
 
     private func isEligibleReminderForHabitBrowser(_ reminder: EKReminder) -> Bool {
@@ -420,18 +408,11 @@ struct AddRemindersSheet: View {
     }
 
     private func rowState(for reminder: EKReminder) -> ReminderRowState {
-        guard let stamp = stampedUUID(from: reminder) else {
-            return .available
-        }
-
-        if linkedToThisHabitStableUUIDs.contains(stamp) {
-            return .linkedToThisHabit
-        }
-
-        if reminderLinkPolicy == .oneHabitOnly && linkedAnywhereStableUUIDs.contains(stamp) {
+        let keys = ReminderLinkIdentity.keys(for: reminder)
+        if !linkedToThisHabitKeys.isDisjoint(with: keys) { return .linkedToThisHabit }
+        if reminderLinkPolicy == .oneHabitOnly && !linkedAnywhereKeys.isDisjoint(with: keys) {
             return .linkedToAnotherHabit
         }
-
         return .available
     }
 
@@ -591,16 +572,16 @@ struct AddRemindersSheet: View {
                 in: viewContext
               )
         else {
-            linkedToThisHabitStableUUIDs = []
-            linkedAnywhereStableUUIDs = []
+            linkedToThisHabitKeys = []
+            linkedAnywhereKeys = []
             return
         }
 
         let allLinksRequest = NSFetchRequest<NSManagedObject>(entityName: linkEntityName)
         let allLinks = (try? viewContext.fetch(allLinksRequest)) ?? []
 
-        linkedAnywhereStableUUIDs = Set(allLinks.flatMap { link in
-            Array(linkStoredStableUUIDs(link))
+        linkedAnywhereKeys = Set(allLinks.flatMap { link in
+            Array(linkStoredKeys(link))
         })
 
         let linksForThisHabit = fetchLinks(
@@ -610,121 +591,40 @@ struct AddRemindersSheet: View {
             in: viewContext
         )
 
-        linkedToThisHabitStableUUIDs = Set(linksForThisHabit.flatMap { link in
-            Array(linkStoredStableUUIDs(link))
+        linkedToThisHabitKeys = Set(linksForThisHabit.flatMap { link in
+            Array(linkStoredKeys(link))
         })
     }
 
-    private func linkStoredStableUUIDs(_ link: NSManagedObject) -> Set<String> {
-        var keys = Set<String>()
-        let candidates = ["reminderIdentifier", "reminderId", "reminderID"]
-
-        for c in candidates {
-            if let s = link.valueIfExists(forKey: c) as? String, !s.isEmpty {
-                keys.insert(s)
-            }
-        }
-
-        return keys
+    private func linkStoredKeys(_ link: NSManagedObject) -> Set<String> {
+        ReminderLinkIdentity.storedKeys(link)
     }
 
-    private func saveLinksAsync() async {
-        guard let linkEntityName = guessLinkEntityName(in: viewContext) else {
-            print("✗ AddRemindersSheet: could not guess link entity name")
-            return
+    @MainActor
+    private func saveLinksAsync() async -> Bool {
+        guard EKEventStore.authorizationStatus(for: .reminder) == .fullAccess else {
+            linkSaveError = "Reminders access is unavailable. Allow access in Settings and try again."
+            return false
         }
-
-        guard let linkToHabitKey = findRelationshipKey(
-            entityName: linkEntityName,
-            destinationEntityName: "Habit",
-            in: viewContext
-        ) else {
-            print("✗ AddRemindersSheet: could not find relationship \(linkEntityName) -> Habit")
-            return
-        }
-
-        var byKey: [String: EKReminder] = [:]
-        for r in allReminders {
-            byKey[stableIdentifierToStore(for: r)] = r
-        }
-
-        var stampedBySelectionKey: [String: String] = [:]
-
-        do {
-            for selectionKey in selectedKeys {
-                guard let r = byKey[selectionKey] else { continue }
-
-                let stableUUID = ensureStampedUUID(on: r)
-                stampedBySelectionKey[selectionKey] = stableUUID
-
-                try store.save(r, commit: false)
-            }
-
-            try store.commit()
-        } catch {
-            print("✗ AddRemindersSheet: EventKit save/commit failed: \(error)")
-            return
-        }
-
-        for selectionKey in selectedKeys {
-            guard let r = byKey[selectionKey] else { continue }
-            guard let stableUUID = stampedBySelectionKey[selectionKey] else { continue }
-
-            let link = NSEntityDescription.insertNewObject(
-                forEntityName: linkEntityName,
-                into: viewContext
-            )
-
-            link.setIfExistsObject(habit, forKey: linkToHabitKey)
-
-            link.setIfExistsString(stableUUID, forKey: "reminderIdentifier")
-            link.setIfExistsString(stableUUID, forKey: "reminderId")
-            link.setIfExistsString(stableUUID, forKey: "reminderID")
-
-            link.setIfExistsString(r.calendarItemIdentifier, forKey: "calendarItemIdentifier")
-            if let ext = r.calendarItemExternalIdentifier {
-                link.setIfExistsString(ext, forKey: "calendarItemExternalIdentifier")
-            }
-
-            link.setIfExistsString(r.title, forKey: "title")
-            link.setIfExistsString(r.calendar.title, forKey: "calendarTitle")
-            link.setIfExistsDate(Date(), forKey: "createdAt")
-
-            let isReq = requiredKeys.contains(selectionKey)
-            link.setIfExistsBool(isReq, forKey: "isRequired")
-            link.setIfExistsBool(isReq, forKey: "required")
+        let chosen = allReminders.filter { selectedKeys.contains(stableIdentifierToStore(for: $0)) }
+        guard Set(chosen.map { stableIdentifierToStore(for: $0) }) == selectedKeys else {
+            linkSaveError = "Some selected reminders are no longer available. Refresh and try again."
+            return false
         }
 
         do {
-            try viewContext.save()
-            await ReminderMetadataRefresher.shared.refreshLinkTitles(in: viewContext)
+            try ReminderLinker.save(chosen, requiredKeys: requiredKeys, habit: habit, in: viewContext)
             HabitCompletionEngine.syncTodayFromReminders(in: viewContext, includeCompleted: true)
-
-            await MainActor.run {
-                eventKitSyncCoordinator.refreshNow()
-            }
+            eventKitSyncCoordinator.refreshNow()
+            return true
         } catch {
-            print("✗ AddRemindersSheet: Core Data save failed \(error)")
+            linkSaveError = "Unable to save reminder links. Your Apple Reminders have not been changed. Please try again."
+            return false
         }
     }
 
     private func stampedUUID(from reminder: EKReminder) -> String? {
-        guard let url = reminder.url else { return nil }
-        guard url.scheme?.lowercased() == stampScheme else { return nil }
-        guard url.host?.lowercased() == stampHost else { return nil }
-
-        let raw = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return raw.isEmpty ? nil : raw
-    }
-
-    private func ensureStampedUUID(on reminder: EKReminder) -> String {
-        if let existing = stampedUUID(from: reminder) { return existing }
-
-        let uuid = UUID().uuidString
-        if let url = URL(string: "\(stampScheme)://\(stampHost)/\(uuid)") {
-            reminder.url = url
-        }
-        return uuid
+        ReminderLinkIdentity.stamp(in: reminder)
     }
 
     private func fetchLinks(
@@ -739,9 +639,7 @@ struct AddRemindersSheet: View {
     }
 
     private func stableIdentifierToStore(for r: EKReminder) -> String {
-        if let stamped = stampedUUID(from: r) { return stamped }
-        if let ext = r.calendarItemExternalIdentifier, !ext.isEmpty { return ext }
-        return r.calendarItemIdentifier
+        ReminderLinkIdentity.identifier(for: r)
     }
 
     private func findRelationshipKey(
@@ -780,32 +678,5 @@ struct AddRemindersSheet: View {
             entity.name?.localizedCaseInsensitiveContains("link") == true &&
             entity.relationshipsByName.values.contains(where: { $0.destinationEntity?.name == "Habit" })
         })?.name
-    }
-}
-
-private extension NSManagedObject {
-    func valueIfExists(forKey key: String) -> Any? {
-        guard entity.propertiesByName[key] != nil else { return nil }
-        return value(forKey: key)
-    }
-
-    func setIfExistsString(_ value: String?, forKey key: String) {
-        guard entity.propertiesByName[key] != nil else { return }
-        setValue(value, forKey: key)
-    }
-
-    func setIfExistsBool(_ value: Bool, forKey key: String) {
-        guard entity.propertiesByName[key] != nil else { return }
-        setValue(value, forKey: key)
-    }
-
-    func setIfExistsDate(_ value: Date?, forKey key: String) {
-        guard entity.propertiesByName[key] != nil else { return }
-        setValue(value, forKey: key)
-    }
-
-    func setIfExistsObject(_ value: Any?, forKey key: String) {
-        guard entity.propertiesByName[key] != nil else { return }
-        setValue(value, forKey: key)
     }
 }

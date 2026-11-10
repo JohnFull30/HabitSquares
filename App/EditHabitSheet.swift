@@ -200,23 +200,7 @@ struct EditHabitSheet: View {
     }
 
     private func linkStoredStableIdentifier(_ link: HabitReminderLink) -> String? {
-        if let id = link.reminderIdentifier, !id.isEmpty {
-            return id
-        }
-
-        if link.entity.propertiesByName["reminderId"] != nil,
-           let id = link.value(forKey: "reminderId") as? String,
-           !id.isEmpty {
-            return id
-        }
-
-        if link.entity.propertiesByName["reminderID"] != nil,
-           let id = link.value(forKey: "reminderID") as? String,
-           !id.isEmpty {
-            return id
-        }
-
-        return nil
+        ReminderLinkIdentity.storedKeys(link).sorted().first
     }
 
     // MARK: - Editing
@@ -233,17 +217,7 @@ struct EditHabitSheet: View {
 
             let reminders = await fetchAllRemindersForEditing()
 
-            let match = reminders.first { reminder in
-                if let stamped = stampedUUID(from: reminder), stamped == storedID {
-                    return true
-                }
-
-                if let externalID = reminder.calendarItemExternalIdentifier, externalID == storedID {
-                    return true
-                }
-
-                return reminder.calendarItemIdentifier == storedID
-            }
+            let match = reminders.first { ReminderLinkIdentity.matches($0, link: link) }
 
             guard let match else {
                 print("✗ EditHabitSheet: could not resolve EventKit reminder for link ID \(storedID)")
@@ -347,12 +321,5 @@ struct EditHabitSheet: View {
         }
     }
 
-    private func stampedUUID(from reminder: EKReminder) -> String? {
-        guard let url = reminder.url else { return nil }
-        guard url.scheme?.lowercased() == "habitsquares" else { return nil }
-        guard url.host?.lowercased() == "reminder-link" else { return nil }
 
-        let raw = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return raw.isEmpty ? nil : raw
-    }
 }
