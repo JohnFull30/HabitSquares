@@ -120,10 +120,17 @@ enum HabitCompletionEngine {
         for habit in habits {
             let links = try requiredLinks(for: habit, in: context)
             guard !links.isEmpty else { continue }
+            // Read the window once per habit, rather than issuing hundreds of day fetches
+            // on the main context during startup. Retain all existing rows unchanged.
+            let request = HabitCompletion.fetchRequest()
+            request.predicate = NSPredicate(format: "habit == %@ AND date >= %@ AND date < %@",
+                                            habit, firstDay as NSDate, today as NSDate)
+            var existingDays = Set(try context.fetch(request).compactMap { row in
+                row.date.map { calendar.startOfDay(for: $0) }
+            })
             for (date, keys) in doneKeysByDay {
                 let day = calendar.startOfDay(for: date)
-                guard day >= firstDay, day < today,
-                      try completions(for: habit, day: day, in: context).isEmpty else { continue }
+                guard day >= firstDay, day < today, !existingDays.contains(day) else { continue }
                 let done = links.filter { !ReminderLinkIdentity.storedKeys($0).isDisjoint(with: keys) }.count
                 // Absence is ambiguous. Only import actual positive completion evidence.
                 guard done > 0 else { continue }
@@ -132,6 +139,7 @@ enum HabitCompletionEngine {
                 row.habit = habit
                 row.date = day
                 row.source = historySource
+                existingDays.insert(day)
                 row.totalRequired = Int16(clamping: links.count)
                 row.completedRequired = Int16(clamping: done)
                 row.isComplete = done == links.count
