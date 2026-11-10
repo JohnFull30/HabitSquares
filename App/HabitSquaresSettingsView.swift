@@ -10,6 +10,22 @@ import SwiftUI
 
 struct HabitSquaresSettingsView: View {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = true
+    @EnvironmentObject private var purchaseManager: PurchaseManager
+    @State private var activeSheet: SettingsSheet?
+
+    private enum SettingsSheet: Identifiable {
+        case upgrade
+        case customTip
+
+        var id: String {
+            switch self {
+            case .upgrade:
+                return "upgrade"
+            case .customTip:
+                return "customTip"
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -24,6 +40,39 @@ struct HabitSquaresSettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 6)
+                }
+
+                Section("Founder Lifetime Pro") {
+                    if purchaseManager.isPro {
+                        Label("Unlimited habits unlocked", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        Button {
+                            activeSheet = .upgrade
+                        } label: {
+                            Label("Unlock Unlimited Habits", systemImage: "infinity")
+                        }
+
+                        Text("Free users can create up to \(PurchaseManager.freeHabitLimit) habits.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button("Restore Purchases") {
+                        Task {
+                            await purchaseManager.restorePurchases()
+                        }
+                    }
+
+                    if let errorMessage = purchaseManager.errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                TipDeveloperView {
+                    activeSheet = .customTip
                 }
 
                 Section("How it works") {
@@ -64,6 +113,21 @@ struct HabitSquaresSettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .sheet(item: $activeSheet) { sheet in
+                switch sheet {
+                case .upgrade:
+                    ProUpgradeView(reason: .settings)
+                        .environmentObject(purchaseManager)
+                case .customTip:
+                    CustomTipView()
+                        .environmentObject(purchaseManager)
+                }
+            }
+            .task {
+                if purchaseManager.products.isEmpty {
+                    await purchaseManager.loadProducts()
+                }
+            }
         }
     }
 }

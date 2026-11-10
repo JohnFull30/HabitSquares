@@ -346,8 +346,8 @@ struct AddRemindersSheet: View {
                 let end = Calendar.current.date(byAdding: .day, value: 7, to: start)!
 
                 return eligibleReminders.filter { r in
-                    if let due = r.dueDateComponents?.date, due >= start && due < end { return true }
-                    if r.isCompleted, let cd = r.completionDate, cd >= start && cd < end { return true }
+                    if let due = r.dueDateComponents?.date, due.compare(start) != .orderedAscending && due.compare(end) == .orderedAscending { return true }
+                    if r.isCompleted, let cd = r.completionDate, cd.compare(start) != .orderedAscending && cd.compare(end) == .orderedAscending { return true }
                     return false
                 }
 

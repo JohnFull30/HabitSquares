@@ -5,6 +5,7 @@ import EventKit
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var purchaseManager: PurchaseManager
 
     @FetchRequest(
         sortDescriptors: [
@@ -14,8 +15,6 @@ struct ContentView: View {
     )
     private var habitResults: FetchedResults<Habit>
     
-    @State private var showingSettings = false
-
     @State private var path = NavigationPath()
     @State private var activeSheet: ActiveSheet?
     @State private var habitPendingDelete: Habit?
@@ -31,6 +30,8 @@ struct ContentView: View {
 
     private enum ActiveSheet: Identifiable {
         case addHabit
+        case upgrade
+        case settings
         case reminders(Habit)
         case editName(Habit)
 
@@ -38,6 +39,10 @@ struct ContentView: View {
             switch self {
             case .addHabit:
                 return "addHabit"
+            case .upgrade:
+                return "upgrade"
+            case .settings:
+                return "settings"
             case .reminders(let habit):
                 return "reminders-\(habit.objectID.uriRepresentation().absoluteString)"
             case .editName(let habit):
@@ -56,22 +61,22 @@ struct ContentView: View {
                     HStack {
                         Spacer()
 
-                        Text("habitSquares")
-                            .font(.system(size: 12, weight: .bold))
+                        Text("HabitSquares")
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.7)
+                            .minimumScaleFactor(0.65)
                             .allowsTightening(true)
-                            .frame(width: 92, height: 92)
+                            .frame(width: 104, height: 104)
                             .background(
-                                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                                RoundedRectangle(cornerRadius: 28, style: .continuous)
                                     .fill(Color(uiColor: .secondarySystemBackground))
                             )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 28, style: .continuous)
                                     .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                            )
-                            .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
+                            }
+                            .shadow(color: .black.opacity(0.12), radius: 14, x: 0, y: 7)
 
                         Spacer()
                     }
@@ -103,6 +108,14 @@ struct ContentView: View {
                 case .addHabit:
                     AddHabitView()
                         .environment(\.managedObjectContext, viewContext)
+
+                case .upgrade:
+                    ProUpgradeView(reason: .habitLimit)
+                        .environmentObject(purchaseManager)
+
+                case .settings:
+                    HabitSquaresSettingsView()
+                        .environmentObject(purchaseManager)
 
                 case .reminders(let habit):
                     ReminderListView(habit: habit)
@@ -137,43 +150,31 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        showingSettings = true
+                        activeSheet = .settings
                     } label: {
                         Image(systemName: "gearshape")
                     }
                     .accessibilityLabel("Settings")
                 }
             }
-            .sheet(isPresented: $showingSettings) {
-                HabitSquaresSettingsView()
-            }
         }
     }
 
     private var emptyStateView: some View {
-        VStack(spacing: 14) {
-            Spacer()
+        VStack(spacing: 10) {
+            Text("No habits yet")
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(.primary)
 
-            Text("No habits yet.")
-                .font(.headline)
-
-            Text("Tap the button below to add your first habit.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            Text("Create a habit first. You can link Apple Reminders during setup.")
+            Text("Create yfour first habit square.\nLink Apple Reminders during setup, then watch your daily progress fill in.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-                .font(.footnote)
-                .padding(.top, 6)
-
-            Spacer()
-            Spacer()
+                .foregroundStyle(.secondary)
+                .lineSpacing(2)
+                .padding(.horizontal, 32)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.top, 150)
     }
 
     private var habitsGridView: some View {
@@ -227,7 +228,11 @@ struct ContentView: View {
 
     private var addHabitButton: some View {
         Button {
-            activeSheet = .addHabit
+            if purchaseManager.canCreateHabit(currentCount: habitResults.count) {
+                activeSheet = .addHabit
+            } else {
+                activeSheet = .upgrade
+            }
         } label: {
             Label("Add Habit", systemImage: "plus")
                 .font(.headline)

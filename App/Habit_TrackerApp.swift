@@ -9,6 +9,7 @@ struct Habit_TrackerApp: App {
     let persistenceController = PersistenceController.shared
 
     @StateObject private var eventKitSyncCoordinator = EventKitSyncCoordinator()
+    @StateObject private var purchaseManager = PurchaseManager()
 
     var body: some Scene {
         WindowGroup {
@@ -24,8 +25,10 @@ struct Habit_TrackerApp: App {
                 persistenceController.container.viewContext
             )
             .environmentObject(eventKitSyncCoordinator)
+            .environmentObject(purchaseManager)
             .task {
                 eventKitSyncCoordinator.startObserving()
+                purchaseManager.start()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }

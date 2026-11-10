@@ -40,7 +40,7 @@ struct HabitDetailView: View {
                     Label("Add Reminders", systemImage: "plus")
                 }
             }
-
+#if DEBUG
             if AppFlags.showDevTools {
                 Section(
                     footer:
@@ -64,6 +64,7 @@ struct HabitDetailView: View {
                 }
                 
             }
+#endif
             }
         .task {
             await loadLinkedReminderCandidates()

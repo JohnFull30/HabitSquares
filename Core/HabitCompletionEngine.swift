@@ -44,12 +44,10 @@ enum HabitCompletionEngine {
                                                                   start: start,
                                                                   endExclusive: endExclusive)
 
-            await MainActor.run {
-                upsertCompletionsForWindow(in: context,
-                                           startDay: start,
-                                           endDayInclusive: today,
-                                           doneKeysByDay: doneKeysByDay)
-            }
+            await upsertCompletionsForWindow(in: context,
+                                              startDay: start,
+                                              endDayInclusive: today,
+                                              doneKeysByDay: doneKeysByDay)
         }
     }
 
@@ -72,8 +70,8 @@ enum HabitCompletionEngine {
         for r in reminders where r.isCompleted {
             // ✅ Only count completions that happened today
             guard let completedAt = r.completionDate,
-                  completedAt >= startOfDay,
-                  completedAt < endOfDay
+                  completedAt.compare(startOfDay) != .orderedAscending,
+                  completedAt.compare(endOfDay) == .orderedAscending
             else { continue }
 
             if let stamp = stampedUUID(from: r) {
@@ -335,7 +333,7 @@ enum HabitCompletionEngine {
     private static func upsertCompletionsForWindow(in context: NSManagedObjectContext,
                                                    startDay: Date,
                                                    endDayInclusive: Date,
-                                                   doneKeysByDay: [Date: Set<String>]) {
+                                                   doneKeysByDay: [Date: Set<String>]) async {
 
         let cal = Calendar.current
         let habits = fetchHabits(in: context)
@@ -351,29 +349,29 @@ enum HabitCompletionEngine {
             return
         }
 
-        // Iterate day-by-day across the window (365 days)
+        // Resolve each habit's links once, rather than fetching them for every day.
+        let habitKeys = habits.map { habit in
+            let links = fetchLinks(for: habit,
+                                   linkEntityName: linkEntityName,
+                                   linkToHabitKey: linkToHabitKey,
+                                   requiredOnly: true,
+                                   in: context)
+            return (habit, links.map { Set(linkStoredKeys($0).map(normalizeStoredKey)) })
+        }
+
+        // Process one day at a time so startup work does not monopolize the UI.
         var day = cal.startOfDay(for: startDay)
         let last = cal.startOfDay(for: endDayInclusive)
 
-        while day <= last {
+        while day.compare(last) != .orderedDescending {
             let nextDay = cal.date(byAdding: .day, value: 1, to: day)!
             let doneKeysForDay = doneKeysByDay[day] ?? []
 
-            for habit in habits {
-                let requiredLinks = fetchLinks(for: habit,
-                                               linkEntityName: linkEntityName,
-                                               linkToHabitKey: linkToHabitKey,
-                                               requiredOnly: true,
-                                               in: context)
-
-                var requiredDone = 0
-                for link in requiredLinks {
-                    let linkKeys = linkStoredKeys(link).map(normalizeStoredKey)
-                    let matched = !Set(linkKeys).intersection(doneKeysForDay).isEmpty
-                    if matched { requiredDone += 1 }
-                }
-
-                let requiredTotal = requiredLinks.count
+            for (habit, requiredKeys) in habitKeys where !habit.isDeleted {
+                let requiredDone = requiredKeys.filter {
+                    !$0.isDisjoint(with: doneKeysForDay)
+                }.count
+                let requiredTotal = requiredKeys.count
                 let isComplete = (requiredTotal > 0) && (requiredDone == requiredTotal)
 
                 upsertHabitCompletion(habit: habit,
@@ -386,6 +384,7 @@ enum HabitCompletionEngine {
             }
 
             day = nextDay
+            await Task.yield()
         }
 
         do {

@@ -1,0 +1,115 @@
+{
+  "identifier" : "3D3F0E45-51D0-4E66-8AB0-88F9E4A4D1D6",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "29.99",
+      "familyShareable" : false,
+      "internalID" : "2C90D620-4815-44EE-B9D7-9B70DAD10D27",
+      "localizations" : [
+        {
+          "description" : "Unlock unlimited habits forever.",
+          "displayName" : "Founder Lifetime Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "PullerLabs.HabitSquares.founderLifetimePro",
+      "referenceName" : "Founder Lifetime Pro",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "1.99",
+      "familyShareable" : false,
+      "internalID" : "486EB116-1522-4183-9399-E98F2E7F5458",
+      "localizations" : [
+        {
+          "description" : "Send a small thank-you tip.",
+          "displayName" : "Small Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "PullerLabs.HabitSquares.tip.small",
+      "referenceName" : "Small Tip",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "59492061-B5BB-46CC-8617-E2BBF7767C0A",
+      "localizations" : [
+        {
+          "description" : "Send a generous thank-you tip.",
+          "displayName" : "Medium Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "PullerLabs.HabitSquares.tip.medium",
+      "referenceName" : "Medium Tip",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : false,
+      "internalID" : "72944DCB-4965-45F2-B91A-298C7B6A7EE4",
+      "localizations" : [
+        {
+          "description" : "Send a large thank-you tip.",
+          "displayName" : "Large Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "PullerLabs.HabitSquares.tip.large",
+      "referenceName" : "Large Tip",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "24.99",
+      "familyShareable" : false,
+      "internalID" : "786BCAEA-3C78-4922-BBB7-0570D1E883A7",
+      "localizations" : [
+        {
+          "description" : "Send an extra generous thank-you tip.",
+          "displayName" : "Extra Generous Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "PullerLabs.HabitSquares.tip.extraGenerous",
+      "referenceName" : "Extra Generous Tip",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "03A64F15-F6BF-4953-B14D-8E9238089792",
+      "localizations" : [
+        {
+          "description" : "Send a custom thank-you tip.",
+          "displayName" : "Tip Unit",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "PullerLabs.HabitSquares.tip.unit",
+      "referenceName" : "Tip Unit",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "7528755811",
+    "_developerTeamID" : "CRF77UR32V",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

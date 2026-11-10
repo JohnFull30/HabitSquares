@@ -87,16 +87,14 @@ enum HabitHeatmapBuilder {
             completedDates.map { calendar.startOfDay(for: $0) }
         )
 
-        var allDays: [Date] = []
-        var cursor = expandedStartDate
+        // Build a bounded calendar range without Date's comparison operator.
+        // The device debugger stopped in Date.<= while evaluating the old loop.
+        guard let dayDistance = calendar.dateComponents(
+            [.day], from: expandedStartDate, to: expandedEndDate
+        ).day, dayDistance >= 0 else { return [] }
 
-        while cursor <= expandedEndDate {
-            allDays.append(cursor)
-
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else {
-                break
-            }
-            cursor = next
+        let allDays = (0...dayDistance).compactMap { offset in
+            calendar.date(byAdding: .day, value: offset, to: expandedStartDate)
         }
 
         guard let firstRealDate = allDays.first else { return [] }

@@ -61,6 +61,8 @@
 		52D1D74B2EFB72E700B3F91A /* WidgetDataWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D1D7362EFB16FC00B3F91A /* WidgetDataWriter.swift */; };
 		52DDB7B82FA5A23D00E8A18C /* AppFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52DDB7B72FA5A23D00E8A18C /* AppFlags.swift */; };
 		52DDB7BA2FA6EE9700E8A18C /* HabitSquaresSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52DDB7B92FA6EE9700E8A18C /* HabitSquaresSettingsView.swift */; };
+		52E8A4B32FB0DA9B00E9A610 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E8A4B12FB0DA9B00E9A610 /* PurchaseManager.swift */; };
+		52E8A4B42FB0DA9B00E9A610 /* ProUpgradeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E8A4B22FB0DA9B00E9A610 /* ProUpgradeView.swift */; };
 		52FAC0322F91986D0034A3C4 /* HeatmapDayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C865612F8C1E3F00313F31 /* HeatmapDayCell.swift */; };
 		52FAC0332F9198850034A3C4 /* CalendarHeatmapGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C865652F8C2C1500313F31 /* CalendarHeatmapGridView.swift */; };
 		52FAC06B2F919BCE0034A3C4 /* WidgetHeatmapGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52FAC06A2F919BCE0034A3C4 /* WidgetHeatmapGrid.swift */; };
@@ -166,6 +168,10 @@
 		52D1D7482EFB625500B3F91A /* HabitID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitID.swift; sourceTree = "<group>"; };
 		52DDB7B72FA5A23D00E8A18C /* AppFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFlags.swift; sourceTree = "<group>"; };
 		52DDB7B92FA6EE9700E8A18C /* HabitSquaresSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitSquaresSettingsView.swift; sourceTree = "<group>"; };
+		52E8A4AF2FB0DA9B00E9A610 /* HabitSquares.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = HabitSquares.storekit; sourceTree = "<group>"; };
+		52E8A4B12FB0DA9B00E9A610 /* PurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseManager.swift; sourceTree = "<group>"; };
+		52E8A4B22FB0DA9B00E9A610 /* ProUpgradeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProUpgradeView.swift; sourceTree = "<group>"; };
+		52F8F32A30A29ADB007C3AAD /* habitSqauresRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = habitSqauresRelease.entitlements; sourceTree = "<group>"; };
 		52FAC06A2F919BCE0034A3C4 /* WidgetHeatmapGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHeatmapGrid.swift; sourceTree = "<group>"; };
 		52FAC0712F92F1230034A3C4 /* ColorHex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorHex.swift; sourceTree = "<group>"; };
 		52FAC0752F9333A30034A3C4 /* HeatmapHeaderFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapHeaderFormatter.swift; sourceTree = "<group>"; };
@@ -253,6 +259,9 @@
 		523CBDE02ED010A900455486 = {
 			isa = PBXGroup;
 			children = (
+				52F8F32A30A29ADB007C3AAD /* habitSqauresRelease.entitlements */,
+				52E8A4B02FB0DA9B00E9A610 /* Purchases */,
+				52E8A4AF2FB0DA9B00E9A610 /* HabitSquares.storekit */,
 				52D1D7412EFB538200B3F91A /* Widget Extension */,
 				52D1D7402EFB537700B3F91A /* Widget Shared */,
 				52D1D73F2EFB536A00B3F91A /* Shared UI */,
@@ -389,6 +398,15 @@
 				52D1D7392EFB262300B3F91A /* HabitSquaresWidgetBundle.swift */,
 			);
 			path = "Widget Extension";
+			sourceTree = "<group>";
+		};
+		52E8A4B02FB0DA9B00E9A610 /* Purchases */ = {
+			isa = PBXGroup;
+			children = (
+				52E8A4B12FB0DA9B00E9A610 /* PurchaseManager.swift */,
+				52E8A4B22FB0DA9B00E9A610 /* ProUpgradeView.swift */,
+			);
+			path = Purchases;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -580,6 +598,7 @@
 				52D1D70A2EFB0E5C00B3F91A /* AddHabitView.swift in Sources */,
 				52D1D70B2EFB0E5C00B3F91A /* AddRemindersSheet.swift in Sources */,
 				52C58EC92F7097500063A687 /* ReminderMetadataRefresher.swift in Sources */,
+				52E8A4B32FB0DA9B00E9A610 /* PurchaseManager.swift in Sources */,
 				52563E852F84132F00C73C31 /* ConfirmDeleteModifier.swift in Sources */,
 				52D1D70D2EFB0E5C00B3F91A /* ContentView.swift in Sources */,
 				52D1D7312EFB0FB200B3F91A /* NewReminderSheet.swift in Sources */,
@@ -611,6 +630,7 @@
 				52D1D7192EFB0E5C00B3F91A /* ReminderService.swift in Sources */,
 				52D1D71A2EFB0E5C00B3F91A /* HabitSeeder.swift in Sources */,
 				52DDB7B82FA5A23D00E8A18C /* AppFlags.swift in Sources */,
+				52E8A4B42FB0DA9B00E9A610 /* ProUpgradeView.swift in Sources */,
 				52D1D71B2EFB0E5C00B3F91A /* PersistenceController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -701,6 +721,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "PullerLabs.Habit-Tracker";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -717,7 +738,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
-				CODE_SIGN_ENTITLEMENTS = "";
+				CODE_SIGN_ENTITLEMENTS = habitSqauresRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CRF77UR32V;
@@ -738,6 +759,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "PullerLabs.Habit-Tracker";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
